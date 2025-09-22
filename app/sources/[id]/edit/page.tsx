@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import SourceForm from "@/components/source-form";
-import { sourceService } from "@/lib/sourceService";
-import { ScrapingSource } from "@/types/scraping";
 import { useToast } from "@/components/ui/use-toast";
+import SourceForm from "@/components/source-form";
+import { ScrapingSource, sourceService } from "@/lib/sourceService";
 
 interface EditSourcePageProps {
   params: {
@@ -16,13 +15,14 @@ interface EditSourcePageProps {
 export default function EditSourcePage({ params }: EditSourcePageProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { id } = params;
   const [initialData, setInitialData] = useState<ScrapingSource | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSource = async () => {
       try {
-        const source = await sourceService.getSourceById(params.id);
+        const source = await sourceService.getSourceById(id);
         if (source) {
           setInitialData(source);
         } else {
@@ -34,9 +34,10 @@ export default function EditSourcePage({ params }: EditSourcePageProps) {
           router.push("/admin/sources");
         }
       } catch (error: any) {
+        console.error("Error fetching source:", error);
         toast({
           title: "Error",
-          description: `Failed to fetch source: ${error.message}`,
+          description: `Failed to load source data: ${error.message}`,
           variant: "destructive",
         });
         router.push("/admin/sources");
@@ -44,11 +45,14 @@ export default function EditSourcePage({ params }: EditSourcePageProps) {
         setLoading(false);
       }
     };
-    fetchSource();
-  }, [params.id, router, toast]);
 
-  const handleSubmit = async (data: ScrapingSource, id?: string) => {
-    if (!id) {
+    if (id) {
+      fetchSource();
+    }
+  }, [id, router, toast]);
+
+  const handleSubmit = async (data: ScrapingSource, sourceId?: string) => {
+    if (!sourceId) {
       toast({
         title: "Error",
         description: "Source ID is missing for update.",
@@ -57,13 +61,14 @@ export default function EditSourcePage({ params }: EditSourcePageProps) {
       return;
     }
     try {
-      await sourceService.updateSource(id, data);
+      await sourceService.updateSource(sourceId, data);
       toast({
         title: "Success",
-        description: "Scraping source updated successfully.",
+        description: "Source updated successfully.",
       });
-      router.push("/admin/sources");
+      router.push("/admin/sources"); // Redirect to the sources list
     } catch (error: any) {
+      console.error("Error updating source:", error);
       toast({
         title: "Error",
         description: `Failed to update source: ${error.message}`,
@@ -74,18 +79,24 @@ export default function EditSourcePage({ params }: EditSourcePageProps) {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-10 text-center">Loading...</div>
+      <div className="container mx-auto py-10 text-center">
+        <h1 className="text-3xl font-bold mb-6">Loading Source...</h1>
+      </div>
     );
   }
 
   if (!initialData) {
-    return null; // Or a loading spinner, or an error message
+    return (
+      <div className="container mx-auto py-10 text-center">
+        <h1 className="text-3xl font-bold mb-6">Source Not Found</h1>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Edit Scraping Source</h1>
-      <SourceForm sourceId={params.id} initialData={initialData} onSubmit={handleSubmit} />
+      <SourceForm onSubmit={handleSubmit} initialData={initialData} sourceId={id} />
     </div>
   );
 }

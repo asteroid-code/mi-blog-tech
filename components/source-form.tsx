@@ -17,63 +17,36 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
+import { ScrapingSource } from "@/types/scraping"; // Import from types/scraping
 
 interface SourceFormProps {
   sourceId?: string;
+  onSubmit: (data: ScrapingSource, id?: string) => Promise<void>;
+  initialData?: ScrapingSource;
 }
 
-interface ScrapingSource {
-  id?: string;
-  name: string;
-  url: string;
-  selector?: string;
-  is_active: boolean;
-  quality_score: number;
-  content_type: "news" | "tutorial" | "opinion" | "image";
-  trust_level: "verified" | "experimental" | "banned";
-  last_success_rate: number;
-}
 
-export default function SourceForm({ sourceId }: SourceFormProps) {
-  const router = useRouter();
+export default function SourceForm({ sourceId, onSubmit, initialData }: SourceFormProps) {
   const { toast } = useToast();
-  const [source, setSource] = useState<ScrapingSource>({
-    name: "",
-    url: "",
-    selector: "",
-    is_active: true,
-    quality_score: 5,
-    content_type: "news",
-    trust_level: "experimental",
-    last_success_rate: 100,
-  });
+  const [source, setSource] = useState<ScrapingSource>(
+    initialData || {
+      name: "",
+      url: "",
+      selector: "",
+      is_active: true,
+      quality_score: 5,
+      content_type: "news",
+      trust_level: "experimental",
+      last_success_rate: 100,
+    }
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (sourceId) {
-      const fetchSource = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from("scraping_sources")
-          .select("*")
-          .eq("id", sourceId)
-          .single();
-
-        if (error) {
-          console.error("Error fetching source:", error);
-          toast({
-            title: "Error",
-            description: "Failed to load source data.",
-            variant: "destructive",
-          });
-        } else if (data) {
-          setSource(data);
-        }
-        setLoading(false);
-      };
-      fetchSource();
+    if (initialData) {
+      setSource(initialData);
     }
-  }, [sourceId, toast]);
+  }, [initialData]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -99,44 +72,31 @@ export default function SourceForm({ sourceId }: SourceFormProps) {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    const { id, ...sourceData } = source; // Exclude id for insert, include for update
-
-    let dbCall;
-    if (sourceId) {
-      dbCall = supabase
-        .from("scraping_sources")
-        .update(sourceData)
-        .eq("id", sourceId);
-    } else {
-      dbCall = supabase.from("scraping_sources").insert([sourceData]);
-    }
-
-    const { error } = await dbCall;
-
-    if (error) {
-      console.error("Error saving source:", error);
+    try {
+      if (sourceId) {
+        // If sourceId exists, it's an update operation
+        await onSubmit(source, sourceId);
+      } else {
+        // If no sourceId, it's a creation operation
+        await onSubmit(source);
+      }
+    } catch (error: any) {
+      console.error("Error submitting form:", error);
       toast({
         title: "Error",
         description: `Failed to save source: ${error.message}`,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Source saved successfully.",
-      });
-      router.push("/admin/sources");
-      router.refresh();
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmitForm} className="space-y-6">
       <div>
         <Label htmlFor="name">Source Name</Label>
         <Input

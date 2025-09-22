@@ -1,10 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import SourceForm from "@/components/source-form";
-import { sourceService } from "@/lib/sourceService";
-import { ScrapingSource } from "@/types/scraping";
 import { useToast } from "@/components/ui/use-toast";
+import SourceForm from "@/components/source-form";
+import { ScrapingSource, sourceService } from "@/lib/sourceService";
 
 export default function NewSourcePage() {
   const router = useRouter();
@@ -15,10 +14,11 @@ export default function NewSourcePage() {
       await sourceService.createSource(data);
       toast({
         title: "Success",
-        description: "Scraping source created successfully.",
+        description: "Source created successfully.",
       });
-      router.push("/admin/sources");
+      router.push("/admin/sources"); // Redirect to the sources list
     } catch (error: any) {
+      console.error("Error creating source:", error);
       toast({
         title: "Error",
         description: `Failed to create source: ${error.message}`,

@@ -81,7 +81,7 @@ export default function SourcesPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manage Scraping Sources</h1>
         <Button asChild>
-          <Link href="/admin/sources/new">Add New Source</Link>
+          <Link href="/sources/new">Add New Source</Link>
         </Button>
       </div>
       <div className="border rounded-lg">
@@ -112,7 +112,7 @@ export default function SourcesPage() {
                 <TableCell>{source.last_success_rate}%</TableCell>
                 <TableCell className="flex gap-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/admin/sources/edit/${source.id}`}>Edit</Link>
+                    <Link href={`/sources/${source.id}/edit`}>Edit</Link>
                   </Button>
                   <Button
                     variant="destructive"
