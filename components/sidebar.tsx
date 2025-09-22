@@ -112,6 +112,16 @@ export function Sidebar({ categories }: SidebarProps) {
           ))}
         </div>
       </div>
+
+      {/* Analytics Dashboard Link */}
+      <div className="bg-card rounded-xl p-6 border border-border/50">
+        <Link href="/app/analytics/dashboard" className="flex items-center gap-2 group cursor-pointer py-1">
+          <span className="text-primary text-lg">📊</span>
+          <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+            Analytics Dashboard
+          </h3>
+        </Link>
+      </div>
     </div>
   )
 }

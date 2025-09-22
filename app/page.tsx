@@ -6,17 +6,12 @@ import { Sidebar } from "@/components/sidebar"
 import { VideoSection } from "@/components/video-section"
 import { supabase } from "@/lib/supabaseClient"
 import ScraperButton from "@/components/scraper-button"
+import { getPosts } from "@/lib/contentService"
 
 export default async function Page() {
-  const { data: posts, error } = await supabase
-    .from("generated_content")
-    .select("id, created_at, title, summary, image_url, post_type, categories(name)")
-    .order("created_at", { ascending: false })
-    .limit(8)
+  const posts = await getPosts();
 
-  if (error) {
-    console.error("Error fetching posts:", error)
-    // Devuelve un array vacío o maneja el error como prefieras
+  if (!posts) {
     return <div>Error al cargar los artículos.</div>
   }
 
@@ -39,6 +34,7 @@ export default async function Page() {
   }
 
   const featuredPost = normalizedPosts?.[0]
+  const featuredArticlePost = normalizedPosts?.[1]
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +50,7 @@ export default async function Page() {
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
           <section className="space-y-8">
-            <FeaturedArticle />
+            {featuredArticlePost && <FeaturedArticle post={featuredArticlePost} />}
             <ArticleGrid posts={normalizedPosts} />
           </section>
 
