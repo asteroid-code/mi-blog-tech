@@ -1,5 +1,18 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Link from "next/link"
+
+// Define the type for a single category
+interface Category {
+  id: string
+  name: string
+  slug: string
+}
+
+// Define the props for the Sidebar component
+interface SidebarProps {
+  categories: Category[] | null
+}
 
 const trendingTopics = [
   { topic: "GPT-5 Release", count: "2.1k menciones", trend: "+45%" },
@@ -9,22 +22,13 @@ const trendingTopics = [
   { topic: "Meta Llama 3", count: "987 menciones", trend: "+15%" },
 ]
 
-const categories = [
-  { name: "Inteligencia Artificial", count: 156, color: "text-primary" },
-  { name: "Machine Learning", count: 89, color: "text-secondary" },
-  { name: "Blockchain", count: 67, color: "text-green-400" },
-  { name: "Robótica", count: 45, color: "text-orange-400" },
-  { name: "Quantum Computing", count: 34, color: "text-purple-400" },
-  { name: "IoT", count: 28, color: "text-blue-400" },
-]
-
 const stats = [
   { label: "Artículos Generados", value: "12,847", change: "+23%" },
   { label: "Lectores Activos", value: "89.2k", change: "+18%" },
   { label: "Temas Cubiertos", value: "1,234", change: "+12%" },
 ]
 
-export function Sidebar() {
+export function Sidebar({ categories }: SidebarProps) {
   return (
     <div className="space-y-6">
       {/* Trending Topics */}
@@ -95,13 +99,16 @@ export function Sidebar() {
           <h3 className="text-lg font-bold text-foreground">Categorías</h3>
         </div>
         <div className="space-y-2">
-          {categories.map((category, index) => (
-            <div key={index} className="flex items-center justify-between group cursor-pointer py-1">
-              <span className={`text-sm font-medium group-hover:${category.color} transition-colors`}>
+          {categories?.map((category) => (
+            <Link
+              href={`/category/${category.slug}`}
+              key={category.id}
+              className="flex items-center justify-between group cursor-pointer py-1"
+            >
+              <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                 {category.name}
               </span>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">{category.count}</span>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
