@@ -110,7 +110,6 @@ export async function performScraping(source: ScrapingSource): Promise<void> {
     }
 
     // Actualizar last_scraped_at
-    const supabase = await createClient();
     await supabase
       .from('scraping_sources')
       .update({ last_scraped_at: new Date().toISOString() })
