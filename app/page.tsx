@@ -5,7 +5,6 @@ import { ArticleGrid } from "@/components/article-grid"
 import { Sidebar } from "@/components/sidebar"
 import { VideoSection } from "@/components/video-section"
 import { supabase } from "@/lib/supabaseClient" // Assuming this is for categories, will adjust if needed
-import ScraperButton from "@/components/scraper-button"
 import { getPosts, Post, getPostById } from "@/lib/contentService"
 import { Pagination } from "@/components/ui/pagination" // Assuming a pagination component exists or will be created
 import { PaginationContent, PaginationItem, PaginationPrevious, PaginationLink, PaginationNext } from "@/components/ui/pagination"
@@ -56,9 +55,6 @@ export default async function Page({ searchParams }: HomePageProps) {
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="text-center mb-6">
-          <ScraperButton />
-        </div>
         {featuredPost && <HeroSection post={featuredPost} />}
 
         <VideoSection />
