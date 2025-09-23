@@ -1,17 +1,18 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client"; // Client-side Supabase client
+import { useToast } from "@/components/ui/use-toast"; // Assuming a toast component for feedback
 
-// Define the type for a single category
-interface Category {
-  id: string
-  name: string
-  slug: string
-}
+import { Category } from "@/lib/contentService"; // Import Category interface
 
 // Define the props for the Sidebar component
 interface SidebarProps {
-  categories: Category[] | null
+  categories: Category[] | null;
 }
 
 const trendingTopics = [
@@ -29,6 +30,69 @@ const stats = [
 ]
 
 export function Sidebar({ categories }: SidebarProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentCategory = searchParams.get('category');
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast(); // Initialize toast
+
+  const supabase = createClient();
+
+  const handleCategoryClick = (slug: string) => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    if (currentCategory === slug) {
+      current.delete('category'); // Deselect category if already selected
+    } else {
+      current.set('category', slug);
+    }
+    current.delete('page'); // Reset page to 1 when category changes
+    router.push(`/?${current.toString()}`);
+  };
+
+  const handleSubmitNewsletter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    if (!email || !email.includes('@')) {
+      toast({
+        title: "Error de suscripción",
+        description: "Por favor, introduce un email válido.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("newsletter_subscriptions").insert({ email });
+
+      if (error) {
+        console.error("Error subscribing to newsletter:", error);
+        toast({
+          title: "Error de suscripción",
+          description: "Hubo un problema al suscribirte. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "¡Suscripción exitosa!",
+          description: "Gracias por suscribirte a nuestro newsletter.",
+        });
+        setEmail(""); // Clear email input
+      }
+    } catch (err) {
+      console.error("Unexpected error subscribing:", err);
+      toast({
+        title: "Error inesperado",
+        description: "Ocurrió un error inesperado. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Trending Topics */}
@@ -83,13 +147,25 @@ export function Sidebar({ categories }: SidebarProps) {
         <p className="text-sm text-muted-foreground mb-4">
           Recibe las últimas noticias de IA y tecnología directamente en tu inbox.
         </p>
-        <div className="space-y-3">
-          <Input placeholder="tu@email.com" className="bg-background/50 border-border focus:border-primary" />
-          <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-all duration-300">
-            Suscribirse
+        <form onSubmit={handleSubmitNewsletter} className="space-y-3">
+          <Input
+            type="email"
+            placeholder="tu@email.com"
+            className="bg-background/50 border-border focus:border-primary"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={isSubmitting}
+          />
+          <Button
+            type="submit"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-all duration-300"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Suscribiendo..." : "Suscribirse"}
             <span className="ml-2">→</span>
           </Button>
-        </div>
+        </form>
       </div>
 
       {/* Categories */}
@@ -100,15 +176,17 @@ export function Sidebar({ categories }: SidebarProps) {
         </div>
         <div className="space-y-2">
           {categories?.map((category) => (
-            <Link
-              href={`/category/${category.slug}`}
+            <button
+              onClick={() => handleCategoryClick(category.slug)}
               key={category.id}
-              className="flex items-center justify-between group cursor-pointer py-1"
+              className={`flex items-center justify-between group cursor-pointer py-1 w-full text-left ${
+                currentCategory === category.slug ? 'text-primary font-bold' : 'text-foreground hover:text-primary'
+              } transition-colors`}
             >
-              <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+              <span className="text-sm font-medium">
                 {category.name}
               </span>
-            </Link>
+            </button>
           ))}
         </div>
       </div>

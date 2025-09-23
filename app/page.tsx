@@ -4,25 +4,41 @@ import { FeaturedArticle } from "@/components/featured-article"
 import { ArticleGrid } from "@/components/article-grid"
 import { Sidebar } from "@/components/sidebar"
 import { VideoSection } from "@/components/video-section"
-import { supabase } from "@/lib/supabaseClient"
+import { supabase } from "@/lib/supabaseClient" // Assuming this is for categories, will adjust if needed
 import ScraperButton from "@/components/scraper-button"
-import { getPosts } from "@/lib/contentService"
+import { getPosts, Post, getPostById } from "@/lib/contentService"
+import { Pagination } from "@/components/ui/pagination" // Assuming a pagination component exists or will be created
+import { PaginationContent, PaginationItem, PaginationPrevious, PaginationLink, PaginationNext } from "@/components/ui/pagination"
+import Link from "next/link"
 
-export default async function Page() {
-  const posts = await getPosts();
+interface HomePageProps {
+  searchParams: {
+    q?: string;
+    category?: string;
+    page?: string;
+  };
+}
 
-  if (!posts) {
+const POSTS_PER_PAGE = 10; // Define how many posts per page
+
+export default async function Page({ searchParams }: HomePageProps) {
+  const query = searchParams.q || '';
+  const categorySlug = searchParams.category || '';
+  const currentPage = Number(searchParams.page) || 1;
+
+  const { data: postsData, count: totalPosts } = await getPosts({
+    query,
+    categorySlug,
+    page: currentPage,
+    limit: POSTS_PER_PAGE,
+  });
+
+  if (!postsData) {
     return <div>Error al cargar los artículos.</div>
   }
 
-  // 🛠️ FIX DEFINITIVO (NORMALIZACIÓN DE DATOS)
-  // Nos aseguramos de que `post.categories` sea siempre un array.
-  const normalizedPosts = posts?.map(post => ({
-    ...post,
-    // Si `categories` no es un array, lo convertimos en uno vacío.
-    // Esto evita el error `.map is not a function` en los componentes.
-    categories: Array.isArray(post.categories) ? post.categories : [],
-  })) || [];
+  const featuredPost: Post | undefined = postsData?.[0];
+  const gridPosts: Post[] = postsData?.slice(1) || [];
 
   // Petición para obtener categorías
   const { data: categories, error: categoriesError } = await supabase
@@ -33,8 +49,7 @@ export default async function Page() {
     console.error("Error al obtener categorías:", categoriesError);
   }
 
-  const featuredPost = normalizedPosts?.[0]
-  const featuredArticlePost = normalizedPosts?.[1]
+  const totalPages = Math.ceil((totalPosts || 0) / POSTS_PER_PAGE);
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,8 +65,28 @@ export default async function Page() {
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
           <section className="space-y-8">
-            {featuredArticlePost && <FeaturedArticle post={featuredArticlePost} />}
-            <ArticleGrid posts={normalizedPosts} />
+            <ArticleGrid posts={gridPosts} />
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious href={`/?${new URLSearchParams({ ...searchParams, page: Math.max(1, currentPage - 1).toString() }).toString()}`} />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink href={`/?${new URLSearchParams({ ...searchParams, page: pageNumber.toString() }).toString()}`} isActive={pageNumber === currentPage}>
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext href={`/?${new URLSearchParams({ ...searchParams, page: Math.min(totalPages, currentPage + 1).toString() }).toString()}`} />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
           </section>
 
           <aside className="sticky top-24 h-fit">

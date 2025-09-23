@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js'; // For direct Supabase client in cascade
 
 // Cargar la clave de API de HuggingFace desde las variables de entorno
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
@@ -42,7 +42,7 @@ class AIService {
    * Obtiene los proveedores de IA activos y configurados.
    */
   async getAvailableProviders(): Promise<ApiConfiguration[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await (await this.supabase)
       .from('api_configurations')
       .select('*')
       .eq('is_active', true);
@@ -76,7 +76,7 @@ class AIService {
    * Registra el uso de la API en la base de datos.
    */
   private async logApiUsage(usage: Omit<ApiUsage, 'id' | 'created_at'>): Promise<void> {
-    const { error } = await this.supabase.from('api_usage').insert([usage]);
+    const { error } = await (await this.supabase).from('api_usage').insert([usage]);
     if (error) {
       console.error('Error logging API usage:', error);
     }
@@ -86,7 +86,7 @@ class AIService {
    * Genera texto utilizando el mejor proveedor disponible.
    */
   async generateText(prompt: string, userId: string, type: 'creative' | 'specific' | 'structured'): Promise<string | null> {
-    const { data: profile, error: profileError } = await this.supabase
+    const { data: profile, error: profileError } = await (await this.supabase)
       .from('profiles')
       .select('credits')
       .eq('id', userId)
@@ -152,7 +152,7 @@ class AIService {
 
         // Si la llamada es exitosa
         const newCredits = userCredits - cost;
-        await this.supabase.from('profiles').update({ credits: newCredits }).eq('id', userId);
+        await (await this.supabase).from('profiles').update({ credits: newCredits }).eq('id', userId);
 
         await this.logApiUsage({
           provider,
@@ -236,7 +236,7 @@ class AIService {
       prompt = `Rewrite the following text: ${content}`;
     }
 
-    const { data: profile, error: profileError } = await this.supabase
+    const { data: profile, error: profileError } = await (await this.supabase)
       .from('profiles')
       .select('credits')
       .eq('id', userId)
@@ -261,7 +261,7 @@ class AIService {
 
       if (improvedText) {
         const newCredits = userCredits - cost;
-        await this.supabase.from('profiles').update({ credits: newCredits }).eq('id', userId);
+        await (await this.supabase).from('profiles').update({ credits: newCredits }).eq('id', userId);
 
         await this.logApiUsage({
           provider: 'huggingface',
@@ -275,6 +275,204 @@ class AIService {
       console.error(`Error improving content with HuggingFace (${type}):`, error);
       return null;
     }
+  }
+
+  /**
+   * Procesa contenido a través de la cascada de 3 IAs.
+   * @param unscrapedContent El objeto de contenido original a procesar.
+   * @returns El contenido generado o null si falla.
+   */
+  async processContentWithCascade(unscrapedContent: any): Promise<any | null> {
+    console.log('🚀 Iniciando cascada de 3 IA desde AIService...');
+
+    let job: any = null; // Declare job outside try block
+    const supabase = await createServerSupabaseClient(); // Usar el cliente de servidor
+
+    try {
+      // 1. CREAR JOB DE PROCESAMIENTO (Capa 1)
+      const { data: newJob, error: jobError } = await supabase
+        .from('processing_jobs')
+        .insert([{
+          content_id: unscrapedContent.id,
+          status: 'running',
+          job_type_id: 1,
+          parameters: {
+            original_title: unscrapedContent.title,
+            content_length: unscrapedContent.content?.length || 0
+          },
+          progress: 0,
+          started_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (jobError) throw new Error(`Error creando job: ${jobError.message}`);
+      job = newJob; // Assign newJob to job
+
+      // 2. IA1: ANÁLISIS Y FILTRADO
+      console.log('🤖 IA1: Analizando contenido...');
+      const analysis = await this.analyzeWithAI(unscrapedContent);
+      await this.updateJobProgress(job.id, 33, analysis);
+
+      // 3. IA2: ESTRUCTURA Y OUTLINE
+      console.log('📝 IA2: Creando estructura...');
+      const outline = await this.createOutlineWithAI(analysis);
+      await this.updateJobProgress(job.id, 66, outline);
+
+      // 4. IA3: REDACCIÓN FINAL (USA TU LÓGICA REAL)
+      console.log('✍️ IA3: Generando artículo...');
+      // TODO: Obtener el userId de la sesión del usuario o usar uno por defecto para tareas de sistema
+      const userId = 'system-ai-cascade-bot'; // Usar un ID de usuario de sistema
+      const finalArticle = await this.writeArticleWithAI(outline, userId);
+      await this.updateJobProgress(job.id, 100, finalArticle);
+
+      // 5. GUARDAR CONTENIDO GENERADO
+      const { data: generated, error: genError } = await supabase
+        .from('generated_content')
+        .insert([{
+          original_content_id: unscrapedContent.id,
+          title: finalArticle.title,
+          content: finalArticle.content,
+          ai_provider: finalArticle.ai_provider,
+          ai_model: finalArticle.ai_model,
+          status: 'published',
+          word_count: finalArticle.word_count,
+          metadata: {
+            processing_time: Date.now(),
+            ai_cascade: true,
+            analysis_score: analysis.relevance,
+            outline_sections: outline.sections?.length || 0,
+            version: '1.0'
+          },
+          published_at: new Date().toISOString(),
+          reading_time: Math.ceil(finalArticle.word_count / 200)
+        }])
+        .select()
+        .single();
+
+      if (genError) throw new Error(`Error guardando contenido: ${genError.message}`);
+
+      // 6. MARCAR COMO PROCESADO
+      await supabase
+        .from('original_content')
+        .update({ is_processed: true })
+        .eq('id', unscrapedContent.id);
+
+      // 7. COMPLETAR JOB
+      await supabase
+        .from('processing_jobs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          result: { generated_content_id: generated.id }
+        })
+        .eq('id', job.id);
+
+      console.log('✅ Cascada completada exitosamente!');
+      return generated;
+
+    } catch (error) {
+      console.error('❌ Error en cascada de IA desde AIService:', error);
+      if (job) {
+        await supabase
+          .from('processing_jobs')
+          .update({ status: 'failed', completed_at: new Date().toISOString() })
+          .eq('id', job.id);
+      }
+      return null;
+    }
+  }
+
+  // FUNCIONES DE LAS 3 IA EN CASCADA (adaptadas como métodos privados)
+  private async analyzeWithAI(content: any) {
+    const topic = this.extractMainTopic(content.title + ' ' + content.content);
+
+    return {
+      topic,
+      relevance: this.calculateRelevance(topic),
+      keyPoints: this.extractKeyPoints(content.content),
+      wordCount: content.content?.length || 0,
+      sentiment: 'neutral'
+    };
+  }
+
+  private async createOutlineWithAI(analysis: any) {
+    return {
+      title: `Análisis: ${analysis.topic}`,
+      sections: [
+        'Introducción',
+        'Desarrollo técnico',
+        'Tendencias actuales',
+        'Conclusión'
+      ],
+      keywords: [analysis.topic, 'IA', 'tecnología'],
+      targetWordCount: 150
+    };
+  }
+
+  private async writeArticleWithAI(outline: any, userId: string) {
+    const topic = outline.keywords[0] || outline.topic || 'Inteligencia Artificial';
+
+    const generatedText = await this.generateText(topic, userId, 'structured');
+
+    if (!generatedText) {
+      throw new Error('No se pudo generar el contenido con IA desde el servicio unificado.');
+    }
+
+    try {
+      const providerMatch = generatedText.match(/\[(.*?)\]/);
+      const provider = providerMatch ? providerMatch[1].toLowerCase() : 'unknown';
+
+      return {
+        title: `Artículo sobre ${topic} generado por ${provider}`,
+        content: generatedText,
+        ai_provider: provider,
+        ai_model: 'default-model',
+        word_count: generatedText.split(/\s+/).length,
+      };
+    } catch (error) {
+      console.error("Error al parsear la respuesta del AI Service en cascada:", error);
+      throw new Error("La respuesta del servicio de IA no es un JSON válido.");
+    }
+  }
+
+  // FUNCIONES AUXILIARES (adaptadas como métodos privados)
+  private async updateJobProgress(jobId: string, progress: number, data: any) {
+    const supabase = await createServerSupabaseClient();
+    await supabase
+      .from('processing_jobs')
+      .update({
+        progress,
+        result: data,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+  }
+
+  private extractMainTopic(text: string): string {
+    const topics = ['IA', 'machine learning', 'deep learning', 'LLM', 'OpenAI'];
+    for (const topic of topics) {
+      if (text.toLowerCase().includes(topic.toLowerCase())) {
+        return topic;
+      }
+    }
+    return 'Inteligencia Artificial';
+  }
+
+  private calculateRelevance(topic: string): number {
+    const relevanceMap: { [key: string]: number } = {
+      'IA': 9,
+      'machine learning': 8,
+      'deep learning': 7,
+      'LLM': 9,
+      'OpenAI': 8
+    };
+    return relevanceMap[topic] || 6;
+  }
+
+  private extractKeyPoints(content: string): string[] {
+    const sentences = content.split('.').slice(0, 3);
+    return sentences.map(s => s.trim()).filter(s => s.length > 0);
   }
 }
 

@@ -1,17 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-
-interface Post {
-  id: string
-  created_at: string
-  title: string
-  summary: string
-  image_url: string
-  post_type: string
-  categories: {
-    name: string
-  }[] | null
-}
+import { Post } from "@/lib/contentService"
 
 interface ArticleGridProps {
   posts: Post[] | null
@@ -39,7 +28,9 @@ export function ArticleGrid({ posts }: ArticleGridProps) {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary backdrop-blur-sm">
-                    {post.categories?.[0]?.name}
+                    {Array.isArray(post.categories)
+                      ? post.categories[0]?.name || 'General'
+                      : post.categories?.name || 'General'}
                   </span>
                 </div>
 
@@ -54,7 +45,7 @@ export function ArticleGrid({ posts }: ArticleGridProps) {
                     <span className="text-primary-foreground text-xs">👤</span>
                   </div>
                   <span className="text-xs font-mono text-primary-foreground/80">
-                    AI • {new Date(post.created_at).toLocaleDateString()}
+                    AI • {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
               </div>

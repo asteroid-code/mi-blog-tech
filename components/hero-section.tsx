@@ -1,32 +1,19 @@
 import Image from "next/image"
 import Link from "next/link"
 
-// Define the type for a single post
-interface Post {
-  id: string
-  title: string
-  summary: string
-  image_url: string
-  categories: { name: string }[] | null
-}
+import { Post } from "@/lib/contentService"; // Ensure Post interface is correctly imported
 
 // Define the props for the HeroSection component
 interface HeroSectionProps {
-  post: Post
+  post: Post;
 }
 
 export function HeroSection({ post }: HeroSectionProps) {
   // If there's no post, don't render anything.
   // Consider a skeleton loader here for better UX.
   if (!post) {
-    return null
+    return null;
   }
-
-  // 🛠️ SOLUCIÓN DEFINITIVA: Normalizar los datos
-  // Nos aseguramos de que `categories` sea siempre un array.
-  // Si `post.categories` no es un array (es null, undefined, etc.),
-  // usaremos un array vacío como valor por defecto.
-  const categories = Array.isArray(post.categories) ? post.categories : []
 
   return (
     <Link href={`/articles/${post.id}`} className="block group">
@@ -53,15 +40,25 @@ export function HeroSection({ post }: HeroSectionProps) {
 
           {/* Category Pills */}
           <div className="flex flex-wrap justify-center gap-3">
-            {/* Ahora podemos mapear directamente sobre `categories` sin miedo a errores. */}
-            {categories.map((category) => (
-              <span
-                key={category.name}
-                className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
-              >
-                {category.name}
-              </span>
-            ))}
+            {post.categories && (
+              Array.isArray(post.categories) ? (
+                post.categories.map((category) => (
+                  <span
+                    key={category.name}
+                    className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
+                  >
+                    {category.name}
+                  </span>
+                ))
+              ) : (
+                <span
+                  key={post.categories.name}
+                  className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
+                >
+                  {post.categories.name}
+                </span>
+              )
+            )}
           </div>
         </div>
       </section>

@@ -1,19 +1,8 @@
 import Link from "next/link";
-
-interface Post {
-  id: string;
-  created_at: string;
-  title: string;
-  summary: string;
-  image_url: string;
-  post_type: string;
-  categories: {
-    name: string;
-  }[] | null;
-}
+import { Post } from "@/lib/contentService";
 
 interface FeaturedArticleProps {
-  post: Post;
+  post: Post | null;
 }
 
 export function FeaturedArticle({ post }: FeaturedArticleProps) {
@@ -25,10 +14,27 @@ export function FeaturedArticle({ post }: FeaturedArticleProps) {
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10" />
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-4">
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-              <span className="text-xs">✨</span>
-              {post.categories?.[0]?.name || 'General'}
-            </span>
+            {post.categories && (
+              Array.isArray(post.categories) ? (
+                post.categories.map((category) => (
+                  <span
+                    key={category.name}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
+                  >
+                    <span className="text-xs">✨</span>
+                    {category.name}
+                  </span>
+                ))
+              ) : (
+                <span
+                  key={post.categories.name}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
+                >
+                  <span className="text-xs">✨</span>
+                  {post.categories.name}
+                </span>
+              )
+            )}
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary/20 text-secondary border border-secondary/30">
               Destacado
             </span>
@@ -49,7 +55,7 @@ export function FeaturedArticle({ post }: FeaturedArticleProps) {
                   <span className="text-primary-foreground text-xs">👤</span>
                 </div>
                 <span className="text-sm font-mono text-muted-foreground">
-                  AI • {new Date(post.created_at).toLocaleDateString()}
+                  AI • {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'N/A'}
                 </span>
               </div>
             </div>

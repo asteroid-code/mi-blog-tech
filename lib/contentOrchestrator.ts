@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { aiService } from './aiService';
-import { aiContentProcessor } from './aiContentProcessor';
+// import { aiContentProcessor } from './aiContentProcessor'; // No longer directly used for cascade
 import { qualityChecker } from './qualityChecker';
-import { startScrapingScheduler } from './cron/scrapingScheduler'; // Aún no creado
+import { startScrapingScheduler } from './cron/scrapingScheduler';
 
 export class ContentOrchestrator {
   constructor() {
@@ -64,57 +64,28 @@ export class ContentOrchestrator {
 
       console.log(`Created content processing job ID: ${newJob.id}`);
 
-      // 3. Delegar el procesamiento real a aiContentProcessor
-      await aiContentProcessor.processContentJob(newJob.id);
+      // 3. Delegar el procesamiento real a aiService.processContentWithCascade
+      const generatedContent = await aiService.processContentWithCascade(unscrapedContent);
 
-      // 4. Verificar el estado final del job
-      const { data: updatedJob, error: updatedJobError } = await supabase
-        .from('content_processing_jobs')
-        .select('*')
-        .eq('id', newJob.id)
-        .single();
-
-      if (updatedJobError || !updatedJob) {
-        console.error(`Error fetching updated job ${newJob.id}:`, updatedJobError);
-        return;
-      }
-
-      if (updatedJob.status === 'completed' && updatedJob.generated_content) {
-        // 5. Guardar contenido generado en la tabla 'articles' o 'generated_content'
-        // Aquí asumimos que el contenido generado se guarda en 'articles' directamente
-        // o se crea una nueva entrada en 'generated_content' y luego se asocia a un artículo.
-        // Para simplificar, lo guardaremos en una nueva entrada de 'articles' con un estado inicial.
-
-        const { data: newArticle, error: articleError } = await supabase
-          .from('articles')
-          .insert([{
-            title: `AI Generated: ${unscrapedContent.title}`,
-            content: updatedJob.generated_content,
-            slug: `ai-generated-${unscrapedContent.id}-${Date.now()}`, // Generar un slug único
-            status: 'pending_review',
-            author_id: userId,
-            original_source_id: unscrapedContent.id,
-            // Otros campos necesarios para un artículo
-          }])
-          .select()
-          .single();
-
-        if (articleError || !newArticle) {
-          console.error('Error saving AI generated article:', articleError);
-          // Marcar el job como fallido si no se puede guardar el artículo
-          await supabase.from('content_processing_jobs').update({ status: 'failed' }).eq('id', newJob.id);
-          return;
-        }
-
-        // 6. Marcar contenido original como procesado
+      if (generatedContent) {
+        // 4. Actualizar el job de procesamiento de contenido a 'completed'
         await supabase
-          .from('original_content')
-          .update({ is_processed: true })
-          .eq('id', unscrapedContent.id);
+          .from('content_processing_jobs')
+          .update({
+            status: 'completed',
+            generated_content: generatedContent.content, // Asumiendo que generatedContent tiene una propiedad 'content'
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', newJob.id);
 
-        console.log(`✅ Contenido "${newArticle.title}" generado y marcado como pendiente de revisión (Article ID: ${newArticle.id}).`);
+        console.log(`✅ Contenido "${generatedContent.title}" generado y guardado por la cascada de IA (Generated ID: ${generatedContent.id}).`);
+        // El original_content ya se marca como procesado dentro de processContentWithCascade
       } else {
-        console.error(`Content processing job ${newJob.id} failed or did not generate content.`);
+        console.error(`Content processing job ${newJob.id} failed: AI cascade did not generate content.`);
+        await supabase
+          .from('content_processing_jobs')
+          .update({ status: 'failed' })
+          .eq('id', newJob.id);
       }
 
     } catch (error) {
@@ -128,12 +99,13 @@ export class ContentOrchestrator {
   public async autoPublish(): Promise<void> {
     console.log('Starting auto-publish process...');
     try {
-      const supabase = await createClient(); // Declare once at the beginning of the function
-      // 1. Obtener contenido pendiente de revisión
+      const supabase = await createClient();
+      // 1. Obtener contenido pendiente de revisión de 'generated_content'
       const { data: pendingContent, error: fetchError } = await supabase
         .from('generated_content')
         .select('*')
-        .eq('status', 'pending_review')
+        .eq('status', 'published') // La cascada ya lo marca como 'published'
+        .is('is_published_to_site', false) // Nuevo campo para controlar si ya se publicó en el sitio
         .limit(5); // Publicar en lotes
 
       if (fetchError) {
@@ -153,8 +125,8 @@ export class ContentOrchestrator {
         if (!isDuplicate && !isLowQuality && qualityScore >= 70) { // Umbral de calidad para auto-publicar
           const supabaseInner = await createClient();
           const { error: publishError } = await supabaseInner
-            .from('articles') // Asumiendo que 'pendingContent' ahora viene de 'articles'
-            .update({ status: 'published', published_at: new Date().toISOString() })
+            .from('generated_content') // Actualizar la tabla generated_content
+            .update({ status: 'published', published_at: new Date().toISOString(), is_published_to_site: true })
             .eq('id', article.id);
 
           if (publishError) {
@@ -165,11 +137,11 @@ export class ContentOrchestrator {
         } else {
           console.log(`⚠️ Artículo "${article.title}" (ID: ${article.id}) no pasó el control de calidad. ` +
                       `Duplicado: ${isDuplicate}, Baja Calidad: ${isLowQuality}, Puntuación: ${qualityScore}. ` +
-                      `Manteniendo como 'pending_review'.`);
+                      `Manteniendo como 'published' pero no publicado en el sitio.`);
           // Opcional: Actualizar estado a 'rejected' o 'needs_manual_review'
           const supabaseInner = await createClient();
           await supabaseInner
-            .from('articles')
+            .from('generated_content')
             .update({ status: 'needs_manual_review' }) // Nuevo estado para revisión manual
             .eq('id', article.id);
         }
@@ -186,21 +158,21 @@ export class ContentOrchestrator {
   /**
    * Función auxiliar para actualizar el estado de un job.
    */
-  private async updateJobStatus(jobId: number, status: string, result: any): Promise<void> {
-    const supabase = await createClient(); // Declare once at the beginning of the function
-    const { error } = await supabase
-      .from('content_processing_jobs') // Usar la tabla correcta para los jobs de procesamiento de contenido
-      .update({
-        status: status,
-        generated_content: result.generated_content_id ? result.generated_content_id : null, // Si se pasa el ID del contenido generado
-        // Otros campos como completed_at, updated_at se manejarán dentro de aiContentProcessor
-      })
-      .eq('id', jobId);
+  // private async updateJobStatus(jobId: number, status: string, result: any): Promise<void> {
+  //   const supabase = await createClient(); // Declare once at the beginning of the function
+  //   const { error } = await supabase
+  //     .from('content_processing_jobs') // Usar la tabla correcta para los jobs de procesamiento de contenido
+  //     .update({
+  //       status: status,
+  //       generated_content: result.generated_content_id ? result.generated_content_id : null, // Si se pasa el ID del contenido generado
+  //       // Otros campos como completed_at, updated_at se manejarán dentro de aiContentProcessor
+  //     })
+  //     .eq('id', jobId);
 
-    if (error) {
-      console.error(`Error updating content processing job ${jobId} status to ${status}:`, error);
-    }
-  }
+  //   if (error) {
+  //     console.error(`Error updating content processing job ${jobId} status to ${status}:`, error);
+  //   }
+  // }
 }
 
 export const contentOrchestrator = new ContentOrchestrator();

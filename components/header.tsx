@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/search-input"
 
 export function Header() {
   return (
@@ -37,13 +37,7 @@ export function Header() {
 
           {/* Search Bar */}
           <div className="hidden md:flex items-center space-x-4">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">🔍</span>
-              <Input
-                placeholder="Buscar noticias..."
-                className="pl-10 w-64 bg-input border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300"
-              />
-            </div>
+            <SearchInput />
           </div>
 
           {/* Mobile Menu Button */}
