@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabase/server";
 
 import type { ScrapingSource } from "@/types/scraping";
 
@@ -7,6 +7,7 @@ export type { ScrapingSource };
 
 export const sourceService = {
   async createSource(data: ScrapingSource): Promise<ScrapingSource | null> {
+    const supabase = await createClient();
     const { data: newSource, error } = await supabase
       .from("scraping_sources")
       .insert([data as any]) // Cast to any for now, will fix the type in the next step
@@ -21,6 +22,7 @@ export const sourceService = {
   },
 
   async getSourceById(id: string): Promise<ScrapingSource | null> {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from("scraping_sources")
       .select("*")
@@ -38,6 +40,7 @@ export const sourceService = {
     id: string,
     data: ScrapingSource
   ): Promise<ScrapingSource | null> {
+    const supabase = await createClient();
     const { data: updatedSource, error } = await supabase
       .from("scraping_sources")
       .update(data as any) // Cast to any for now, will fix the type in the next step
@@ -53,6 +56,7 @@ export const sourceService = {
   },
 
   async deleteSource(id: string): Promise<void> {
+    const supabase = await createClient();
     const { error } = await supabase
       .from("scraping_sources")
       .delete()
@@ -65,6 +69,7 @@ export const sourceService = {
   },
 
   async getAllSources(): Promise<ScrapingSource[]> {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from("scraping_sources")
       .select("*");

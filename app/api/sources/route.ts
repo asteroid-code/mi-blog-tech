@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { sourceService, ScrapingSource } from "@/lib/sourceService";
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const cookieStore = cookies();
+  const supabase = await createClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sources = await sourceService.getAllSources();
     return NextResponse.json(sources, { status: 200 });
@@ -15,6 +28,17 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const cookieStore = cookies();
+  const supabase = await createClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const data: ScrapingSource = await request.json();
     const newSource = await sourceService.createSource(data);
@@ -29,6 +53,17 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const cookieStore = cookies();
+  const supabase = await createClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const data: ScrapingSource = await request.json();
     if (!data.id) {
@@ -49,6 +84,17 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const cookieStore = cookies();
+  const supabase = await createClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { id } = await request.json();
     if (!id) {

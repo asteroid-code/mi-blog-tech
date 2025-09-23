@@ -1,5 +1,5 @@
 import { aiService } from './aiService';
-import { supabase } from './supabaseClient';
+import { createClient } from '@/lib/supabase/server';
 
 interface ContentProcessingJob {
   id: number;
@@ -12,18 +12,13 @@ interface ContentProcessingJob {
 }
 
 class AIContentProcessor {
-  private supabase;
-
-  constructor() {
-    this.supabase = supabase;
-  }
-
   /**
    * Procesa un trabajo de mejora de contenido utilizando el AIService.
    */
   async processContentJob(jobId: number): Promise<void> {
+    const supabase = await createClient();
     // 1. Obtener el trabajo de la base de datos
-    const { data: job, error: fetchError } = await this.supabase
+    const { data: job, error: fetchError } = await supabase
       .from('content_processing_jobs')
       .select('*')
       .eq('id', jobId)
@@ -41,7 +36,7 @@ class AIContentProcessor {
     }
 
     // 2. Marcar el trabajo como "processing"
-    await this.supabase
+    await supabase
       .from('content_processing_jobs')
       .update({ status: 'processing' })
       .eq('id', jobId);
@@ -56,14 +51,14 @@ class AIContentProcessor {
 
       if (generatedContent) {
         // 4. Actualizar el trabajo con el contenido generado y marcar como "completed"
-        await this.supabase
+        await supabase
           .from('content_processing_jobs')
           .update({ generated_content: generatedContent, status: 'completed' })
           .eq('id', jobId);
         console.log(`Content processing job ${jobId} completed successfully.`);
       } else {
         // Si no se pudo generar contenido, marcar como "failed"
-        await this.supabase
+        await supabase
           .from('content_processing_jobs')
           .update({ status: 'failed' })
           .eq('id', jobId);
@@ -72,7 +67,7 @@ class AIContentProcessor {
     } catch (error) {
       console.error(`Error processing content job ${jobId}:`, error);
       // 5. Marcar el trabajo como "failed" en caso de error
-      await this.supabase
+      await supabase
         .from('content_processing_jobs')
         .update({ status: 'failed' })
         .eq('id', jobId);

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { createClient } from '@/lib/supabase/server';
 import { aiService } from './aiService';
 import { aiContentProcessor } from './aiContentProcessor';
 import { qualityChecker } from './qualityChecker';
@@ -24,6 +24,7 @@ export class ContentOrchestrator {
   public async processNewContent(): Promise<void> {
     console.log('Starting to process new content...');
     try {
+      const supabase = await createClient();
       // 1. Obtener contenido scrapeado no procesado
       const { data: unscrapedContent, error: fetchError } = await supabase
         .from('original_content')
@@ -127,6 +128,7 @@ export class ContentOrchestrator {
   public async autoPublish(): Promise<void> {
     console.log('Starting auto-publish process...');
     try {
+      const supabase = await createClient(); // Declare once at the beginning of the function
       // 1. Obtener contenido pendiente de revisión
       const { data: pendingContent, error: fetchError } = await supabase
         .from('generated_content')
@@ -144,12 +146,13 @@ export class ContentOrchestrator {
         return;
       }
 
-      const publishPromises = pendingContent.map(async (article) => {
+      const publishPromises = pendingContent.map(async (article: any) => {
         // Usar el qualityChecker real
         const { isDuplicate, isLowQuality, qualityScore } = await qualityChecker.checkArticleQuality(article.id, article.content);
 
         if (!isDuplicate && !isLowQuality && qualityScore >= 70) { // Umbral de calidad para auto-publicar
-          const { error: publishError } = await supabase
+          const supabaseInner = await createClient();
+          const { error: publishError } = await supabaseInner
             .from('articles') // Asumiendo que 'pendingContent' ahora viene de 'articles'
             .update({ status: 'published', published_at: new Date().toISOString() })
             .eq('id', article.id);
@@ -164,7 +167,8 @@ export class ContentOrchestrator {
                       `Duplicado: ${isDuplicate}, Baja Calidad: ${isLowQuality}, Puntuación: ${qualityScore}. ` +
                       `Manteniendo como 'pending_review'.`);
           // Opcional: Actualizar estado a 'rejected' o 'needs_manual_review'
-          await supabase
+          const supabaseInner = await createClient();
+          await supabaseInner
             .from('articles')
             .update({ status: 'needs_manual_review' }) // Nuevo estado para revisión manual
             .eq('id', article.id);
@@ -183,6 +187,7 @@ export class ContentOrchestrator {
    * Función auxiliar para actualizar el estado de un job.
    */
   private async updateJobStatus(jobId: number, status: string, result: any): Promise<void> {
+    const supabase = await createClient(); // Declare once at the beginning of the function
     const { error } = await supabase
       .from('content_processing_jobs') // Usar la tabla correcta para los jobs de procesamiento de contenido
       .update({

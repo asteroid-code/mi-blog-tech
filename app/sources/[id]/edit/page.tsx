@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import SourceForm from "@/components/source-form";
 import { ScrapingSource, sourceService } from "@/lib/sourceService";
+import { useSupabase } from "@/app/components/supabase-provider";
 
 interface EditSourcePageProps {
   params: {
@@ -18,9 +19,16 @@ export default function EditSourcePage({ params }: EditSourcePageProps) {
   const { id } = params;
   const [initialData, setInitialData] = useState<ScrapingSource | null>(null);
   const [loading, setLoading] = useState(true);
+  const { supabase } = useSupabase();
 
   useEffect(() => {
-    const fetchSource = async () => {
+    const fetchSessionAndSource = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login'); // Redirect to login if not authenticated
+        return;
+      }
+
       try {
         const source = await sourceService.getSourceById(id);
         if (source) {
@@ -47,9 +55,9 @@ export default function EditSourcePage({ params }: EditSourcePageProps) {
     };
 
     if (id) {
-      fetchSource();
+      fetchSessionAndSource();
     }
-  }, [id, router, toast]);
+  }, [id, router, toast, supabase]);
 
   const handleSubmit = async (data: ScrapingSource, sourceId?: string) => {
     if (!sourceId) {

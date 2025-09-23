@@ -1,14 +1,8 @@
-import { supabase } from './supabaseClient';
+import { createClient } from '@/lib/supabase/server';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 
 class QualityChecker {
-  private supabase;
-
-  constructor() {
-    this.supabase = supabase;
-  }
-
   /**
    * Calcula un hash simple del contenido para la detección de duplicados.
    */
@@ -28,7 +22,8 @@ class QualityChecker {
   async detectDuplicateContent(content: string, articleIdToExclude?: number): Promise<boolean> {
     const contentHash = this.calculateContentHash(content);
 
-    let query = this.supabase
+    const supabase = await createClient();
+    let query = supabase
       .from('articles')
       .select('id')
       .eq('content_hash', contentHash);
@@ -108,7 +103,8 @@ class QualityChecker {
     const { isLowQuality, score: qualityScore } = await this.detectLowQuality(content);
 
     // Opcional: Actualizar la base de datos con los resultados de la calidad
-    await this.supabase
+    const supabase = await createClient();
+    await supabase
       .from('articles')
       .update({ is_duplicate: isDuplicate, is_low_quality: isLowQuality, quality_score: qualityScore })
       .eq('id', articleId);

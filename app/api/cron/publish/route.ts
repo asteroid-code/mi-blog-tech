@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import { contentOrchestrator } from '@/lib/contentOrchestrator';
 
-export async function POST() {
+export const dynamic = 'force-dynamic'; // Asegura que la ruta no sea estáticamente optimizada
+
+
+export async function POST(request: Request) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   try {
     console.log('Manual publish trigger received.');
     await contentOrchestrator.autoPublish();

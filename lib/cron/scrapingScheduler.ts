@@ -1,4 +1,4 @@
-import { supabase } from '../supabaseClient';
+import { createClient } from '@/lib/supabase/server';
 import { contentOrchestrator } from '../contentOrchestrator'; // Para disparar el procesamiento
 
 interface ScrapingSource {
@@ -28,6 +28,7 @@ export async function startScrapingScheduler(): Promise<void> {
  */
 async function loadAndScheduleSources(): Promise<void> {
   console.log('Loading scraping sources from database...');
+  const supabase = await createClient();
   const { data: sources, error } = await supabase
     .from('scraping_sources')
     .select('*')
@@ -93,6 +94,7 @@ export async function performScraping(source: ScrapingSource): Promise<void> {
       created_at: new Date().toISOString(),
     };
 
+    const supabase = await createClient();
     const { error: insertError } = await supabase
       .from('original_content')
       .insert([scrapedContent]);
@@ -108,6 +110,7 @@ export async function performScraping(source: ScrapingSource): Promise<void> {
     }
 
     // Actualizar last_scraped_at
+    const supabase = await createClient();
     await supabase
       .from('scraping_sources')
       .update({ last_scraped_at: new Date().toISOString() })
@@ -123,6 +126,7 @@ export async function performScraping(source: ScrapingSource): Promise<void> {
  * Actualiza la tasa de éxito de una fuente.
  */
 async function updateSourceSuccessRate(sourceId: string, success: boolean): Promise<void> {
+  const supabase = await createClient();
   const { data: source, error: fetchError } = await supabase
     .from('scraping_sources')
     .select('last_success_rate')

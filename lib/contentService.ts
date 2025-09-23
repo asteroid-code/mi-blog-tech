@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { createClient } from '@/lib/supabase/server';
 
 // Interface for a single post, ensuring type safety.
 export interface Post {
@@ -17,6 +17,7 @@ export interface Post {
  * @returns A promise that resolves to an array of posts.
  */
 export async function getPosts() {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('generated_content')
     .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
@@ -36,6 +37,7 @@ export async function getPosts() {
  * @returns A promise that resolves to a single post object.
  */
 export async function getPostById(id: string) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('generated_content')
     .select('*, categories(name, slug)')
@@ -56,6 +58,7 @@ export async function getPostById(id: string) {
  * @returns A promise that resolves to the newly created post data.
  */
 export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('generated_content')
     .insert([post])

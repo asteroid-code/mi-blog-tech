@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 
 export async function POST() {
+  const cookieStore = cookies();
+  const supabaseServer = await createClient();
+
+  const {
+    data: { session },
+  } = await supabaseServer.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     console.log('🚀 Iniciando detección de fuentes de baja calidad...');
 
     // 1. Obtener todas las fuentes de scraping
-    const { data: sources, error: fetchError } = await supabase
+    const { data: sources, error: fetchError } = await supabaseServer
       .from('scraping_sources')
       .select('*');
 
@@ -48,7 +60,7 @@ export async function POST() {
 
       if (shouldUpdate) {
         updates.push(
-          supabase
+          supabaseServer
             .from('scraping_sources')
             .update({ trust_level: newTrustLevel, is_active: newIsActive })
             .eq('id', source.id)

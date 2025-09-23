@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase/server';
 import { performScraping } from '@/lib/cron/scrapingScheduler'; // Importar la función de scraping
 
-export async function POST() {
+export const dynamic = 'force-dynamic'; // Asegura que la ruta no sea estáticamente optimizada
+
+
+export async function POST(request: Request) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   try {
     console.log('Manual scrape trigger received.');
 
     // Obtener una fuente activa para el scraping manual
+    const supabase = await createClient();
     const { data: source, error: fetchError } = await supabase
       .from('scraping_sources')
       .select('*')

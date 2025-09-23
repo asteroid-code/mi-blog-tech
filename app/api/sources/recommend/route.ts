@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
 import { aiService } from '@/lib/aiService';
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 
 export async function GET() {
+  const cookieStore = cookies();
+  const supabaseServer = await createClient();
+
+  const {
+    data: { session },
+  } = await supabaseServer.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     // 1. Obtener contenido exitoso para analizar patrones
-    const { data: successfulContent, error: contentError } = await supabase
+    const { data: successfulContent, error: contentError } = await supabaseServer
       .from('generated_content')
       .select('title, content, ai_provider, ai_model, original_content_id')
       .eq('status', 'published')
@@ -21,7 +33,7 @@ export async function GET() {
     }
 
     // 2. Extraer temas y palabras clave de contenido exitoso
-    const topics = successfulContent.map(c => c.title).join('. ');
+    const topics = successfulContent.map((c: any) => c.title).join('. ');
     const prompt = `Analyze the following successful content titles and suggest 3 new, high-quality scraping source URLs that would provide similar valuable content. For each suggestion, also provide a brief reason, a suggested content_type (news, tutorial, opinion, image), and a quality_score (1-10). Format the output as a JSON array of objects with 'url', 'reason', 'content_type', and 'quality_score' fields.
 
 Successful content titles: ${topics}

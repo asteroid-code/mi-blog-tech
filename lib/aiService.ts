@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { supabase } from './supabaseClient';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 
 // Cargar la clave de API de HuggingFace desde las variables de entorno
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
@@ -35,7 +35,7 @@ class AIService {
   private supabase;
 
   constructor() {
-    this.supabase = supabase;
+    this.supabase = createServerSupabaseClient();
   }
 
   /**

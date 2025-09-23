@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import { useToast } from "@/components/ui/use-toast";
+import { useSupabase } from "@/app/components/supabase-provider";
 
 interface ScrapingSource {
   id: string;
@@ -27,27 +27,30 @@ interface ScrapingSource {
   last_success_rate: number;
 }
 
-async function getSources(): Promise<ScrapingSource[]> {
-  const { data, error } = await supabase.from("scraping_sources").select("*");
-  if (error) {
-    console.error("Error fetching sources:", error);
-    return [];
-  }
-  return data;
-}
-
 export default function SourcesPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [sources, setSources] = useState<ScrapingSource[]>([]);
+  const { supabase } = useSupabase();
 
   useEffect(() => {
-    const fetchSources = async () => {
-      const fetchedSources = await getSources();
-      setSources(fetchedSources);
+    const fetchSessionAndSources = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login'); // Redirect to login if not authenticated
+        return;
+      }
+
+      const { data, error } = await supabase.from("scraping_sources").select("*");
+      if (error) {
+        console.error("Error fetching sources:", error);
+        setSources([]);
+        return;
+      }
+      setSources(data as ScrapingSource[]);
     };
-    fetchSources();
-  }, []);
+    fetchSessionAndSources();
+  }, [router, supabase]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this source?")) {

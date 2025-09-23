@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,22 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { ScrapingSource } from "@/types/scraping"; // Import from types/scraping
+import { ScrapingSource } from "@/types/scraping";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+// Define Zod schema for validation
+const scrapingSourceSchema = z.object({
+  name: z.string().min(1, "Source Name is required"),
+  url: z.string().url("Invalid URL format").min(1, "URL is required"),
+  selector: z.string().optional(),
+  is_active: z.boolean(),
+  quality_score: z.number().min(1).max(10),
+  content_type: z.enum(["news", "tutorial", "opinion", "image"]),
+  trust_level: z.enum(["verified", "experimental", "banned"]),
+  last_success_rate: z.number().min(0).max(100),
+});
 
 interface SourceFormProps {
   sourceId?: string;
@@ -25,11 +39,13 @@ interface SourceFormProps {
   initialData?: ScrapingSource;
 }
 
-
 export default function SourceForm({ sourceId, onSubmit, initialData }: SourceFormProps) {
   const { toast } = useToast();
-  const [source, setSource] = useState<ScrapingSource>(
-    initialData || {
+  const [loading, setLoading] = useState(false);
+
+  const form = useForm<ScrapingSource>({
+    resolver: zodResolver(scrapingSourceSchema),
+    defaultValues: initialData || {
       name: "",
       url: "",
       selector: "",
@@ -38,51 +54,19 @@ export default function SourceForm({ sourceId, onSubmit, initialData }: SourceFo
       content_type: "news",
       trust_level: "experimental",
       last_success_rate: 100,
-    }
-  );
-  const [loading, setLoading] = useState(false);
+    },
+  });
 
   useEffect(() => {
     if (initialData) {
-      setSource(initialData);
+      form.reset(initialData);
     }
-  }, [initialData]);
+  }, [initialData, form]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
-    setSource((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSelectChange = (name: keyof ScrapingSource, value: string) => {
-    setSource((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSliderChange = (value: number[]) => {
-    setSource((prev) => ({
-      ...prev,
-      quality_score: value[0],
-    }));
-  };
-
-  const handleSubmitForm = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitForm = async (data: ScrapingSource) => {
     setLoading(true);
     try {
-      if (sourceId) {
-        // If sourceId exists, it's an update operation
-        await onSubmit(source, sourceId);
-      } else {
-        // If no sourceId, it's a creation operation
-        await onSubmit(source);
-      }
+      await onSubmit(data, sourceId);
     } catch (error: any) {
       console.error("Error submitting form:", error);
       toast({
@@ -96,115 +80,165 @@ export default function SourceForm({ sourceId, onSubmit, initialData }: SourceFo
   };
 
   return (
-    <form onSubmit={handleSubmitForm} className="space-y-6">
+    <form onSubmit={form.handleSubmit(handleSubmitForm)} className="space-y-6">
       <div>
         <Label htmlFor="name">Source Name</Label>
-        <Input
-          id="name"
+        <Controller
           name="name"
-          value={source.name}
-          onChange={handleChange}
-          required
+          control={form.control}
+          render={({ field }) => (
+            <Input
+              id="name"
+              {...field}
+              required
+            />
+          )}
         />
+        {form.formState.errors.name && (
+          <p className="text-red-500 text-sm mt-1">{form.formState.errors.name.message}</p>
+        )}
       </div>
       <div>
         <Label htmlFor="url">URL</Label>
-        <Input
-          id="url"
+        <Controller
           name="url"
-          type="url"
-          value={source.url}
-          onChange={handleChange}
-          required
+          control={form.control}
+          render={({ field }) => (
+            <Input
+              id="url"
+              type="url"
+              {...field}
+              required
+            />
+          )}
         />
+        {form.formState.errors.url && (
+          <p className="text-red-500 text-sm mt-1">{form.formState.errors.url.message}</p>
+        )}
       </div>
       <div>
         <Label htmlFor="selector">Content Selector (CSS/XPath)</Label>
-        <Textarea
-          id="selector"
+        <Controller
           name="selector"
-          value={source.selector || ""}
-          onChange={handleChange}
-          placeholder="e.g., .article-body, //div[@class='content']"
+          control={form.control}
+          render={({ field }) => (
+            <Textarea
+              id="selector"
+              {...field}
+              value={field.value || ""}
+              placeholder="e.g., .article-body, //div[@class='content']"
+            />
+          )}
         />
       </div>
       <div className="flex items-center space-x-2">
-        <Switch
-          id="is_active"
+        <Controller
           name="is_active"
-          checked={source.is_active}
-          onCheckedChange={(checked) =>
-            setSource((prev) => ({ ...prev, is_active: checked }))
-          }
+          control={form.control}
+          render={({ field }) => (
+            <Switch
+              id="is_active"
+              checked={field.value}
+              onCheckedChange={field.onChange}
+            />
+          )}
         />
         <Label htmlFor="is_active">Is Active</Label>
       </div>
       <div>
-        <Label htmlFor="quality_score">Quality Score: {source.quality_score}</Label>
-        <Slider
-          id="quality_score"
+        <Label htmlFor="quality_score">Quality Score: {form.watch("quality_score")}</Label>
+        <Controller
           name="quality_score"
-          min={1}
-          max={10}
-          step={1}
-          value={[source.quality_score]}
-          onValueChange={handleSliderChange}
-          className="w-[60%]"
+          control={form.control}
+          render={({ field }) => (
+            <Slider
+              id="quality_score"
+              min={1}
+              max={10}
+              step={1}
+              value={[field.value]}
+              onValueChange={(value) => field.onChange(value[0])}
+              className="w-[60%]"
+            />
+          )}
         />
+        {form.formState.errors.quality_score && (
+          <p className="text-red-500 text-sm mt-1">{form.formState.errors.quality_score.message}</p>
+        )}
       </div>
       <div>
         <Label htmlFor="content_type">Content Type</Label>
-        <Select
+        <Controller
           name="content_type"
-          value={source.content_type}
-          onValueChange={(value: "news" | "tutorial" | "opinion" | "image") =>
-            handleSelectChange("content_type", value)
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select content type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="news">News</SelectItem>
-            <SelectItem value="tutorial">Tutorial</SelectItem>
-            <SelectItem value="opinion">Opinion</SelectItem>
-            <SelectItem value="image">Image</SelectItem>
-          </SelectContent>
-        </Select>
+          control={form.control}
+          render={({ field }) => (
+            <Select
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select content type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="news">News</SelectItem>
+                <SelectItem value="tutorial">Tutorial</SelectItem>
+                <SelectItem value="opinion">Opinion</SelectItem>
+                <SelectItem value="image">Image</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {form.formState.errors.content_type && (
+          <p className="text-red-500 text-sm mt-1">{form.formState.errors.content_type.message}</p>
+        )}
       </div>
       <div>
         <Label htmlFor="trust_level">Trust Level</Label>
-        <Select
+        <Controller
           name="trust_level"
-          value={source.trust_level}
-          onValueChange={(value: "verified" | "experimental" | "banned") =>
-            handleSelectChange("trust_level", value)
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select trust level" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="verified">Verified</SelectItem>
-            <SelectItem value="experimental">Experimental</SelectItem>
-            <SelectItem value="banned">Banned</SelectItem>
-          </SelectContent>
-        </Select>
+          control={form.control}
+          render={({ field }) => (
+            <Select
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select trust level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="verified">Verified</SelectItem>
+                <SelectItem value="experimental">Experimental</SelectItem>
+                <SelectItem value="banned">Banned</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {form.formState.errors.trust_level && (
+          <p className="text-red-500 text-sm mt-1">{form.formState.errors.trust_level.message}</p>
+        )}
       </div>
       <div>
         <Label htmlFor="last_success_rate">
-          Last Success Rate: {source.last_success_rate}%
+          Last Success Rate: {form.watch("last_success_rate")}%
         </Label>
-        <Input
-          id="last_success_rate"
+        <Controller
           name="last_success_rate"
-          type="number"
-          min="0"
-          max="100"
-          value={source.last_success_rate}
-          onChange={handleChange}
-          required
+          control={form.control}
+          render={({ field }) => (
+            <Input
+              id="last_success_rate"
+              type="number"
+              min="0"
+              max="100"
+              {...field}
+              onChange={(e) => field.onChange(Number(e.target.value))}
+              required
+            />
+          )}
         />
+        {form.formState.errors.last_success_rate && (
+          <p className="text-red-500 text-sm mt-1">{form.formState.errors.last_success_rate.message}</p>
+        )}
       </div>
       <Button type="submit" disabled={loading}>
         {loading ? "Saving..." : "Save Source"}
