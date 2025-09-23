@@ -1,6 +1,18 @@
 // lib/sourceService.ts
 // This file is a placeholder and should be implemented with actual service logic.
 
+export interface ScrapingSource {
+  id?: string;
+  name: string;
+  url: string;
+  content_type: string;
+  quality_score: number;
+  trust_level: 'verified' | 'experimental' | 'banned';
+  is_active: boolean;
+  last_success_rate: number;
+  // Add other fields as necessary based on your database schema
+}
+
 class SourceService {
   constructor() {
     // Initialize any dependencies or configurations

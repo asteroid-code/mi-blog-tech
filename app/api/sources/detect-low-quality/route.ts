@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 
 export async function POST() {
   const cookieStore = cookies();
-  const supabaseServer = await createClient();
+  const supabaseServer = await createClient(cookieStore);
 
   const {
     data: { session },

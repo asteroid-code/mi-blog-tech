@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
   const cookieStore = cookies();
-  const supabase = await createClient();
+  const supabase = await createClient(cookieStore);
 
   const {
     data: { session },
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const cookieStore = cookies();
-  const supabase = await createClient();
+  const supabase = await createClient(cookieStore);
 
   const {
     data: { session },
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const cookieStore = cookies();
-  const supabase = await createClient();
+  const supabase = await createClient(cookieStore);
 
   const {
     data: { session },
@@ -85,7 +85,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   const cookieStore = cookies();
-  const supabase = await createClient();
+  const supabase = await createClient(cookieStore);
 
   const {
     data: { session },

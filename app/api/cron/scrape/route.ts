@@ -15,7 +15,9 @@ export async function POST(request: Request) {
     console.log('Manual scrape trigger received.');
 
     // Obtener una fuente activa para el scraping manual
-    const supabase = await createClient();
+    // Para rutas cron, no hay `cookies()` disponibles directamente.
+    // Se debe crear un cliente Supabase sin cookies para operaciones de sistema.
+    const supabase = await createClient(null as any); // Pasar null o un objeto vacío si createClient lo permite
     const { data: source, error: fetchError } = await supabase
       .from('scraping_sources')
       .select('*')
