@@ -31,3 +31,11 @@ FOR UPDATE USING (auth.uid() = user_id);
 
 -- Optional: Add an index to user_id for faster lookups
 CREATE INDEX ON subscriptions (user_id);
+
+-- Agregar categorías específicas de IA
+INSERT INTO categories (name, slug, description) VALUES
+('Inteligencia Artificial', 'ia', 'Todo sobre IA y machine learning'),
+('Prompt Engineering', 'prompt-engineering', 'Técnicas de ingeniería de prompts'),
+('Computer Vision', 'computer-vision', 'Visión por computadora y CV'),
+('NLP', 'nlp', 'Procesamiento de lenguaje natural'),
+('AI Ethics', 'ai-ethics', 'Ética e implicaciones sociales de la IA');

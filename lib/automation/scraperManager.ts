@@ -1,122 +1,138 @@
-import { createClient } from '@/lib/supabaseClient';
+import { createClient } from '../supabaseClient'; // Adjusted path
+import { RSSScraper2025 } from '../scrapers/2025/rssScraper2025'; // Adjusted path
+import { ContentGenerator } from '../ai/contentGenerator'; // Adjusted path
+import { AdvancedContentProcessor2025 } from '../processors/advancedContentProcessor'; // Adjusted path
+import { ScrapedContent2025 } from '../../types/scraping'; // Adjusted path
 
-// Define interfaces for better type safety
-interface ScrapingSource {
-  id: number;
-  name: string;
-  url: string;
-  source_type: 'rss' | 'website' | 'api';
-  // Add other relevant fields for a scraping source
-}
-
-interface OriginalContent {
-  id: number;
-  source_id: number;
-  title: string;
-  content: string;
-  url: string;
-  // Add other relevant fields for original content
-}
-
-export class ScraperManager {
+export class ScraperManager2025 {
+  private rssScraper: RSSScraper2025;
+  private contentProcessor: AdvancedContentProcessor2025;
+  private contentGenerator: ContentGenerator; // Added
   private supabase = createClient();
 
-  async scrapeAllSources() {
+  constructor() {
+    this.rssScraper = new RSSScraper2025();
+    this.contentProcessor = new AdvancedContentProcessor2025();
+    this.contentGenerator = new ContentGenerator(); // Initialized
+  }
+
+  async startAutomatedScraping() {
+    console.log('🚀 Iniciando scraping automático...');
+
+    // 1. Obtener fuentes activas
     const { data: sources, error } = await this.supabase
       .from('scraping_sources')
-      .select('*');
+      .select('*')
+      .eq('is_active', true)
+      .eq('source_type', 'rss');
 
-    if (error) {
-      console.error('Error fetching scraping sources:', error);
-      throw error;
+    if (error) throw error;
+
+    // 2. Procesar cada fuente
+    for (const source of sources) {
+      await this.processSource(source);
     }
 
-    if (sources) {
-      for (const source of sources) {
-        await this.processSource(source);
+    console.log('✅ Scraping automático completado');
+  }
+
+  private async processSource(source: any) {
+    try {
+      console.log(`📡 Scrapeando: ${source.name}`);
+
+      // 3. Scrapear contenido
+      const scrapedItems = await this.rssScraper.scrapeFeed(source.url);
+
+      // 4. Procesar cada artículo con IA
+      for (const item of scrapedItems.slice(0, source.scraping_strategy?.max_items || 3)) { // Added optional chaining
+        await this.processArticle(item, source.id);
       }
+
+      // 5. Actualizar métricas
+      await this.updateSourceMetrics(source.id, scrapedItems.length);
+
+    } catch (error) {
+      console.error(`❌ Error procesando fuente ${source.name}:`, error);
     }
   }
 
-  private async processSource(source: ScrapingSource) {
-    console.log(`Processing source: ${source.name} (${source.url})`);
-    // Placeholder for actual scraping logic
-    let scrapedContent: { title: string; content: string; url: string } | null = null;
-
-    switch (source.source_type) {
-      case 'rss':
-        // Implement RSS scraping logic
-        scrapedContent = {
-          title: `Scraped RSS from ${source.name}`,
-          content: `Content from RSS feed of ${source.name}`,
-          url: source.url,
-        };
-        break;
-      case 'website':
-        // Implement website scraping logic (e.g., using a headless browser or cheerio)
-        scrapedContent = {
-          title: `Scraped Website from ${source.name}`,
-          content: `Content from website of ${source.name}`,
-          url: source.url,
-        };
-        break;
-      case 'api':
-        // Implement API scraping logic
-        scrapedContent = {
-          title: `Scraped API from ${source.name}`,
-          content: `Content from API of ${source.name}`,
-          url: source.url,
-        };
-        break;
-      default:
-        console.warn(`Unknown source type: ${source.source_type}`);
-        return;
-    }
-
-    if (scrapedContent) {
-      await this.saveOriginalContent(source.id, scrapedContent);
-    }
-  }
-
-  private async saveOriginalContent(sourceId: number, content: { title: string; content: string; url: string }) {
-    const { data, error } = await this.supabase
+  private async processArticle(scrapedItem: ScrapedContent2025, sourceId: string) {
+    // 6. Verificar si ya existe (evitar duplicados)
+    const { data: existing } = await this.supabase
       .from('original_content')
-      .insert([
-        {
-          source_id: sourceId,
-          title: content.title,
-          content: content.content,
-          url: content.url,
-          // Add other fields as necessary
-        },
-      ])
+      .select('id')
+      .eq('content_hash', this.generateHash(scrapedItem.content))
+      .single();
+
+    if (existing) {
+      console.log('⏭️  Artículo ya existe, saltando...');
+      return;
+    }
+
+    // 7. Procesar con IA
+    const enhancedContent = await this.contentProcessor.processWithAITrends(scrapedItem);
+
+    // 8. Guardar en original_content
+    const { data: savedContent, error } = await this.supabase
+      .from('original_content')
+      .insert({
+        source_id: sourceId,
+        title: scrapedItem.title,
+        content: scrapedItem.content,
+        url: scrapedItem.url,
+        author: scrapedItem.author,
+        published_at: scrapedItem.published_at,
+        content_hash: this.generateHash(scrapedItem.content),
+        metadata: scrapedItem.metadata
+      })
       .select()
       .single();
 
-    if (error) {
-      console.error('Error saving original content:', error);
-      throw error;
-    }
-    console.log('Saved original content:', data);
+    if (error) throw error;
+
+    // 9. Generar contenido con IA y guardar en generated_content
+    await this.generateAIContent(savedContent, enhancedContent);
   }
 
-  // Method to scrape a single source, useful for workers
-  async scrapeSource(sourceId: number) {
-    const { data: source, error } = await this.supabase
+  private generateHash(content: string): string {
+    // Simple hash function for demonstration purposes
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash.toString();
+  }
+
+  private async updateSourceMetrics(sourceId: string, scrapedCount: number) {
+    // Implementar lógica para actualizar métricas de la fuente
+    console.log(`📊 Actualizando métricas para fuente ${sourceId}: ${scrapedCount} artículos scrapeados.`);
+    // Example: Increment a counter in the database
+    const { error } = await this.supabase
       .from('scraping_sources')
-      .select('*')
-      .eq('id', sourceId)
+      .update({ last_scraped_at: new Date().toISOString(), last_scraped_count: scrapedCount })
+      .eq('id', sourceId);
+
+    if (error) console.error('Error updating source metrics:', error);
+  }
+
+  private async generateAIContent(originalContent: any, enhancedContent: any) {
+    const { data: generated, error } = await this.supabase
+      .from('generated_content')
+      .insert({
+        original_content_id: originalContent.id,
+        title: enhancedContent.title,
+        content: enhancedContent.content,
+        summary: enhancedContent.summary,
+        category: enhancedContent.category,
+        ai_model: enhancedContent.ai_model,
+        generated_at: new Date().toISOString(),
+        metadata: enhancedContent.metadata
+      })
+      .select()
       .single();
 
-    if (error) {
-      console.error(`Error fetching source with ID ${sourceId}:`, error);
-      throw error;
-    }
-
-    if (source) {
-      await this.processSource(source);
-    } else {
-      console.warn(`Scraping source with ID ${sourceId} not found.`);
-    }
+    if (error) console.error('Error generating AI content:', error);
   }
 }

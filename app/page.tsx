@@ -4,8 +4,7 @@ import { FeaturedArticle } from "@/components/featured-article"
 import { ArticleGrid } from "@/components/article-grid"
 import { Sidebar } from "@/components/sidebar"
 import { VideoSection } from "@/components/video-section"
-import { createClient } from "@/lib/supabaseClient" // Assuming this is for categories, will adjust if needed
-const supabase = createClient();
+import { supabase } from "@/lib/supabaseClient";
 import { getPosts, Post, getPostById } from "@/lib/contentService"
 import { Pagination } from "@/components/ui/pagination" // Assuming a pagination component exists or will be created
 import { PaginationContent, PaginationItem, PaginationPrevious, PaginationLink, PaginationNext } from "@/components/ui/pagination"

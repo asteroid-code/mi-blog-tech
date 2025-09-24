@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabaseClient'; // ✅ Import correcto
+import { supabase } from '@/lib/supabaseClient';
 
 // Interface for a single post, ensuring type safety.
 export interface Post {
@@ -31,19 +31,6 @@ export async function getPosts({
   limit?: number;
 }) {
   try {
-    // ✅ VERIFICACIÓN EXPLÍCITA
-    if (typeof createClient !== 'function') {
-      throw new Error('createClient is not a function - check import path');
-    }
-
-    const supabase = createClient();
-
-    // ✅ VERIFICACIÓN CRÍTICA
-    if (!supabase || typeof supabase.from !== 'function') {
-      console.error('Supabase client is invalid:', supabase);
-      throw new Error('Supabase client initialization failed');
-    }
-
     let queryBuilder = supabase
       .from('generated_content')
       .select('*, categories(name, slug)', { count: 'exact' }) // Include categories for filtering
@@ -80,12 +67,6 @@ export async function getPosts({
  * @returns A promise that resolves to a single post object.
  */
 export async function getPostById(id: string) {
-  const supabase = createClient();
-
-  if (!supabase) {
-    throw new Error('Supabase client is not initialized');
-  }
-
   const { data, error } = await supabase
     .from('generated_content')
     .select('*, categories(name, slug)')
@@ -106,12 +87,6 @@ export async function getPostById(id: string) {
  * @returns A promise that resolves to the newly created post data.
  */
 export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
-  const supabase = createClient();
-
-  if (!supabase) {
-    throw new Error('Supabase client is not initialized');
-  }
-
   const { data, error } = await supabase
     .from('generated_content')
     .insert([post])
@@ -132,12 +107,6 @@ export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
  * @returns A promise that resolves to posts in that category
  */
 export async function getPostsByCategory(slug: string) {
-  const supabase = createClient();
-
-  if (!supabase) {
-    throw new Error('Supabase client is not initialized');
-  }
-
   const { data, error } = await supabase
     .from('generated_content')
     .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
@@ -158,12 +127,6 @@ export async function getPostsByCategory(slug: string) {
  * @returns A promise that resolves to matching posts
  */
 export async function searchPosts(query: string) {
-  const supabase = createClient();
-
-  if (!supabase) {
-    throw new Error('Supabase client is not initialized');
-  }
-
   const { data, error } = await supabase
     .from('generated_content')
     .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
@@ -183,12 +146,6 @@ export async function searchPosts(query: string) {
  * @returns A promise that resolves to featured posts
  */
 export async function getFeaturedPosts() {
-  const supabase = createClient();
-
-  if (!supabase) {
-    throw new Error('Supabase client is not initialized');
-  }
-
   const { data, error } = await supabase
     .from('generated_content')
     .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
