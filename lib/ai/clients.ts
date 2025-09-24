@@ -1,145 +1,134 @@
-import Groq from 'groq-sdk';
-import { CohereClient } from 'cohere-ai';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
-
-interface AIClientsConfig {
-  groqApiKey?: string;
-  cohereApiKey?: string;
-  huggingFaceApiKey?: string;
-  googleApiKey?: string;
-  openaiApiKey?: string;
-}
+import { Groq } from "groq-sdk";
+import { CohereClient } from "cohere-ai";
+import { HfInference } from "@huggingface/inference";
 
 export class AIClients {
-  private groq: Groq;
-  private cohere: CohereClient;
-  private google: GoogleGenerativeAI;
+  private googleAI: GoogleGenerativeAI;
   private openai: OpenAI;
-  private huggingFaceApiKey: string | undefined;
+  private groq: Groq;
+  private cohere: CohereClient; // Correct type for Cohere
+  private hf: HfInference;
 
-  constructor(config: AIClientsConfig) {
-    this.groq = new Groq({
-      apiKey: config.groqApiKey,
-      timeout: 30000,
-    });
+  constructor() {
+    // Validar que todas las API keys existen
+    this.validateEnvironment();
 
-    this.cohere = new CohereClient({
-      token: config.cohereApiKey,
-    });
+    // Inicializar clients
+    this.googleAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+    this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
-    this.google = new GoogleGenerativeAI(config.googleApiKey || "");
+    const cohereApiKey = process.env.COHERE_API_KEY;
+    if (!cohereApiKey) throw new Error('Missing COHERE_API_KEY environment variable.');
+    this.cohere = new CohereClient({ token: cohereApiKey }); // Instantiate CohereClient
 
-    this.openai = new OpenAI({
-      apiKey: config.openaiApiKey,
-      timeout: 30000,
-    });
-
-    this.huggingFaceApiKey = config.huggingFaceApiKey;
+    this.hf = new HfInference(process.env.HUGGINGFACE_API_KEY!);
   }
 
-  getGroqClient(): Groq {
-    return this.groq;
+  private validateEnvironment(): void {
+    const required = {
+      GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      GROQ_API_KEY: process.env.GROQ_API_KEY,
+      COHERE_API_KEY: process.env.COHERE_API_KEY,
+      HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY,
+    };
+
+    const missing = Object.entries(required)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missing.length > 0) {
+      throw new Error(`Missing API keys: ${missing.join(', ')}`);
+    }
   }
 
-  getCohereClient(): CohereClient {
-    return this.cohere;
-  }
-
+  // Métodos de acceso con verificación
   getGoogleClient(): GoogleGenerativeAI {
-    return this.google;
+    if (!this.googleAI) throw new Error('Google AI client not initialized');
+    return this.googleAI;
   }
 
   getOpenAIClient(): OpenAI {
+    if (!this.openai) throw new Error('OpenAI client not initialized');
     return this.openai;
   }
 
-  getHuggingFaceApiKey(): string | undefined {
-    return this.huggingFaceApiKey;
+  getGroqClient(): Groq {
+    if (!this.groq) throw new Error('Groq client not initialized');
+    return this.groq;
   }
 
-  validateApiKeys(): { provider: string; valid: boolean }[] {
-    return [
-      { provider: 'groq', valid: !!process.env.GROQ_API_KEY },
-      { provider: 'cohere', valid: !!process.env.COHERE_API_KEY },
-      { provider: 'huggingface', valid: !!process.env.HUGGINGFACE_API_KEY },
-      { provider: 'google', valid: !!process.env.GOOGLE_AI_API_KEY },
-      { provider: 'openai', valid: !!process.env.OPENAI_API_KEY },
-    ];
+  getCohereClient(): CohereClient { // Correct return type
+    if (!this.cohere) throw new Error('Cohere client not initialized');
+    return this.cohere;
   }
 
-  getFallbackOrder(): string[] {
-    // This can be dynamically configured or loaded from a central config
-    return ['google', 'openai', 'cohere', 'groq', 'huggingface'];
-  }
-}
-
-// Helper functions for direct API calls (can be refactored to use the AIClients class)
-export async function getGroqCompletion(messages: any[], model: string = 'llama3-8b-8192') {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not set.');
-  }
-  try {
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const chatCompletion = await groq.chat.completions.create({
-      messages,
-      model,
-      temperature: 0.7,
-    });
-    return chatCompletion.choices[0]?.message?.content || '';
-  } catch (error) {
-    console.error('Groq API Error:', error);
-    throw new Error(`Groq API failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-export async function getCohereCompletion(prompt: string, model: string = 'command-r-plus') {
-  if (!process.env.COHERE_API_KEY) {
-    throw new Error('COHERE_API_KEY is not set.');
-  }
-  try {
-    const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
-    const response = await cohere.chat({
-      message: prompt,
-      model,
-      temperature: 0.7,
-    });
-    return response.text;
-  } catch (error) {
-    console.error('Cohere API Error:', error);
-    throw new Error(`Cohere API failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-export async function getHuggingFaceInference(
-  modelId: string,
-  payload: any,
-  options: RequestInit = {}
-) {
-  if (!process.env.HUGGINGFACE_API_KEY) {
-    throw new Error('HUGGINGFACE_API_KEY is not set.');
+  getHFClient(): HfInference {
+    if (!this.hf) throw new Error('HuggingFace client not initialized');
+    return this.hf;
   }
 
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${modelId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      method: 'POST',
-      body: JSON.stringify(payload),
-      ...options,
-    }
-  );
-
-  if (!response.ok) {
-    const errorBody = await response.json();
-    console.error('HuggingFace API Error:', errorBody);
-    throw new Error(
-      `HuggingFace API failed for model ${modelId}: ${response.statusText} - ${JSON.stringify(errorBody)}`
-    );
+  // Validación de conexión
+  validateApiKeys(): Record<string, boolean> {
+    return {
+      google: !!process.env.GOOGLE_AI_API_KEY,
+      openai: !!process.env.OPENAI_API_KEY,
+      groq: !!process.env.GROQ_API_KEY,
+      cohere: !!process.env.COHERE_API_KEY,
+      huggingface: !!process.env.HUGGINGFACE_API_KEY,
+    };
   }
 
-  return response.json();
+  // Health check de todos los servicios
+  async healthCheck(): Promise<Record<string, boolean>> {
+    const results: Record<string, boolean> = {};
+
+    try {
+      // Test Google AI
+      const model = this.googleAI.getGenerativeModel({ model: "gemini-pro" });
+      await model.generateContent("Test");
+      results.google = true;
+    } catch { results.google = false; }
+
+    // Test OpenAI
+    try {
+      await this.openai.chat.completions.create({
+        messages: [{ role: 'user', content: 'Test' }],
+        model: 'gpt-3.5-turbo',
+        max_tokens: 5,
+      });
+      results.openai = true;
+    } catch { results.openai = false; }
+
+    // Test Groq
+    try {
+      await this.groq.chat.completions.create({
+        messages: [{ role: 'user', content: 'Test' }],
+        model: 'llama3-8b-8192',
+        max_tokens: 5,
+      });
+      results.groq = true;
+    } catch { results.groq = false; }
+
+    // Test Cohere
+    try {
+      await this.cohere.chat({ message: 'Test', model: 'command-r-plus', maxTokens: 5 });
+      results.cohere = true;
+    } catch { results.cohere = false; }
+
+    // Test HuggingFace
+    try {
+      await this.hf.textGeneration({
+        model: 'HuggingFaceH4/zephyr-7b-beta',
+        inputs: 'Test',
+        parameters: { max_new_tokens: 5 }
+      });
+      results.huggingface = true;
+    } catch { results.huggingface = false; }
+
+    return results;
+  }
 }

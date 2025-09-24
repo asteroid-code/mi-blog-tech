@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
-import { MultimediaContentGenerator } from '@/lib/ai/contentGenerator';
+import { createClient } from '@/lib/supabaseClient'; // Use our custom Supabase client
+import { ContentGenerator, GeneratedContent } from '@/lib/ai/contentGenerator'; // Removed OriginalContent, added GeneratedContent
 import { AIClients } from '@/lib/ai/clients';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(); // Initialize Supabase client
 const API_SECRET_TOKEN = process.env.API_SECRET_TOKEN!;
 
 // Tipo unificado para el resultado del procesamiento
@@ -17,6 +14,11 @@ type ProcessingResult = {
 };
 
 export async function POST(request: NextRequest) {
+  // Solo habilitar en desarrollo
+  if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_IA) {
+    return NextResponse.json({ error: 'IA disabled in production' }, { status: 403 });
+  }
+
   try {
     // 🔐 Validar autenticación
     const authHeader = request.headers.get('authorization');
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
               status: 'completed',
               completed_at: new Date().toISOString(),
               progress: 100,
-              result: result.data
+              result: result.data // Store the ID of the generated content
             })
             .eq('id', job.id);
 
@@ -150,8 +152,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 🔧 FUNCIONES DE PROCESAMIENTO (implementar después)
-async function processScrapingJob(job: any): Promise<ProcessingResult> { // Especificar el tipo de retorno
+// 🔧 FUNCIONES DE PROCESAMIENTO
+async function processScrapingJob(job: any): Promise<ProcessingResult> {
   console.log(`🌐 Ejecutando scraping para: ${job.scraping_sources?.url}`);
   // TODO: Implementar scraping real con Puppeteer/Playwright
   await new Promise(resolve => setTimeout(resolve, 2000)); // Simulación
@@ -166,33 +168,74 @@ async function processScrapingJob(job: any): Promise<ProcessingResult> { // Espe
   };
 }
 
-async function processArticleGenerationJob(job: any): Promise<ProcessingResult> { // Especificar el tipo de retorno
-  console.log(`🤖 Generando artículo con IA...`);
-  // TODO: Implementar generación con IA
-  const topic = job.metadata?.topic || 'default AI content topic';
-  const category = job.metadata?.category; // Assuming category can also be in metadata
+async function processArticleGenerationJob(job: any): Promise<ProcessingResult> {
+  console.log(`🤖 Generando artículo con IA para job ${job.id}...`);
+  const originalContentId = job.original_content_id; // Assuming job has original_content_id
+  if (!originalContentId) {
+    console.error(`Error: original_content_id is missing for job ${job.id}.`);
+    return { success: false, error: 'Missing original_content_id for article generation.' };
+  }
 
   try {
-    const aiClients = new AIClients({
-      groqApiKey: process.env.GROQ_API_KEY,
-      cohereApiKey: process.env.COHERE_API_KEY,
-      huggingFaceApiKey: process.env.HUGGINGFACE_API_KEY,
-      googleApiKey: process.env.GOOGLE_AI_API_KEY,
-      openaiApiKey: process.env.OPENAI_API_KEY,
-    });
-    const contentGenerator = new MultimediaContentGenerator(aiClients);
-    const generatedContent = await contentGenerator.generateCompleteArticle(topic, category);
+    // Fetch the original content
+    const { data: originalContentData, error: originalContentError } = await supabase
+      .from('original_content')
+      .select('*')
+      .eq('id', originalContentId)
+      .single();
+
+    if (originalContentError || !originalContentData) {
+      console.error(`Error fetching original content for job ${job.id}:`, originalContentError?.message || 'Not found');
+      return { success: false, error: `Original content not found for ID: ${originalContentId}` };
+    }
+
+    // We no longer need to cast to OriginalContent as it's not exported
+    // The ContentGenerator constructor no longer takes AIClients
+    const contentGenerator = new ContentGenerator(); // Instantiate without AIClients
+
+    // Generate content using the original content's title
+    const generatedContent: GeneratedContent = await contentGenerator.generateMultimediaContent(originalContentData.title);
+
+    // Save the generated content to the 'generated_content' table
+    const { data: newContent, error: insertError } = await supabase
+      .from('generated_content')
+      .insert([
+        {
+          original_content_id: originalContentId,
+          title: generatedContent.title,
+          summary: generatedContent.summary,
+          content: generatedContent.content,
+          image_url: generatedContent.image_descriptions[0] || '', // Use first image description as URL
+          post_type: 'article', // Default to article
+          category_id: job.metadata?.category_id || 'default-category-id', // Assuming category_id is in job metadata
+          tags: generatedContent.tags,
+          word_count: generatedContent.word_count,
+          reading_time: generatedContent.reading_time,
+          // Add other fields as necessary
+        },
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error(`Error inserting generated content for job ${job.id}:`, insertError);
+      throw new Error(`Database insert failed: ${insertError.message}`);
+    }
+
+    console.log(`✅ Contenido generado e insertado para job ${job.id}. New content ID: ${newContent.id}`);
 
     return {
       success: true,
       data: {
-        generated_outline: generatedContent.outline,
-        generated_content: generatedContent.content,
-        multimedia_suggestions: generatedContent.multimediaSuggestions,
-        seo_score: generatedContent.seoScore,
-        ai_model: "Google Gemini, OpenAI, Cohere, HuggingFace, Groq"
+        generated_content_id: newContent.id,
+        title: newContent.title,
+        summary: newContent.summary,
+        image_url: newContent.image_url,
+        post_type: newContent.post_type,
+        category_id: newContent.category_id,
       }
     };
+
   } catch (error) {
     console.error(`Error generating article for job ${job.id}:`, error);
     return {

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabaseClient'; // ✅ Import correcto
 
 // Interface for a single post, ensuring type safety.
 export interface Post {
@@ -19,11 +19,6 @@ export interface Category {
   slug: string;
 }
 
-/**
- * Fetches a list of posts from the 'generated_content' table with optional filtering and pagination.
- * @param options An object containing query, categorySlug, page, and limit.
- * @returns A promise that resolves to an object with an array of posts and a total count.
- */
 export async function getPosts({
   query,
   categorySlug,
@@ -35,48 +30,48 @@ export async function getPosts({
   page?: number;
   limit?: number;
 }) {
-  console.log('DEBUG: getPosts called with:', { query, categorySlug, page, limit });
+  try {
+    // ✅ VERIFICACIÓN EXPLÍCITA
+    if (typeof createClient !== 'function') {
+      throw new Error('createClient is not a function - check import path');
+    }
 
-  const supabase = await createClient();
-  console.log('DEBUG: Supabase client created in getPosts.');
+    const supabase = createClient();
 
-  let dbQuery = supabase
-    .from('generated_content')
-    .select('id, created_at, title, summary, content, image_url, post_type, category_id, categories(name, slug)', { count: 'exact' });
+    // ✅ VERIFICACIÓN CRÍTICA
+    if (!supabase || typeof supabase.from !== 'function') {
+      console.error('Supabase client is invalid:', supabase);
+      throw new Error('Supabase client initialization failed');
+    }
 
-  console.log('DEBUG: Initial Supabase query built.');
+    let queryBuilder = supabase
+      .from('generated_content')
+      .select('*, categories(name, slug)', { count: 'exact' }) // Include categories for filtering
+      .order('created_at', { ascending: false });
 
-  if (query) {
-    dbQuery = dbQuery.or(`title.ilike.%${query}%,content.ilike.%${query}%`);
-    console.log('DEBUG: Query parameter added:', query);
+    if (query) {
+      queryBuilder = queryBuilder.or(`title.ilike.%${query}%,content.ilike.%${query}%`);
+    }
+
+    if (categorySlug) {
+      queryBuilder = queryBuilder.eq('categories.slug', categorySlug);
+    }
+
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      const end = start + limit - 1;
+      queryBuilder = queryBuilder.range(start, end);
+    }
+
+    const { data: posts, error, count } = await queryBuilder;
+
+    if (error) throw error;
+
+    return { posts: posts || [], count: count || 0 };
+  } catch (error: any) {
+    console.error('Error in getPosts:', error);
+    return { posts: [], count: 0, error: error.message };
   }
-
-  if (categorySlug) {
-    dbQuery = dbQuery.eq('categories.slug', categorySlug);
-    console.log('DEBUG: Category filter added:', categorySlug);
-  }
-
-  dbQuery = dbQuery.order('created_at', { ascending: false });
-  console.log('DEBUG: Order by created_at added.');
-
-  if (page && limit) {
-    const start = (page - 1) * limit;
-    const end = start + limit - 1;
-    dbQuery = dbQuery.range(start, end);
-    console.log('DEBUG: Pagination range added:', { start, end });
-  }
-
-  console.log('DEBUG: Executing Supabase query...');
-  const { data, error, count } = await dbQuery;
-  console.log('DEBUG: Supabase query executed.');
-
-  if (error) {
-    console.error('ERROR: Supabase error fetching posts:', error);
-    throw new Error(`Could not fetch posts. Supabase error: ${error.message}`);
-  }
-
-  console.log('DEBUG: Posts fetched successfully. Count:', count);
-  return { data, count };
 }
 
 /**
@@ -85,7 +80,11 @@ export async function getPosts({
  * @returns A promise that resolves to a single post object.
  */
 export async function getPostById(id: string) {
-  const supabase = await createClient(); // ✅ AWAIT añadido
+  const supabase = createClient();
+
+  if (!supabase) {
+    throw new Error('Supabase client is not initialized');
+  }
 
   const { data, error } = await supabase
     .from('generated_content')
@@ -107,7 +106,11 @@ export async function getPostById(id: string) {
  * @returns A promise that resolves to the newly created post data.
  */
 export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
-  const supabase = await createClient(); // ✅ AWAIT añadido
+  const supabase = createClient();
+
+  if (!supabase) {
+    throw new Error('Supabase client is not initialized');
+  }
 
   const { data, error } = await supabase
     .from('generated_content')
@@ -129,7 +132,11 @@ export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
  * @returns A promise that resolves to posts in that category
  */
 export async function getPostsByCategory(slug: string) {
-  const supabase = await createClient(); // ✅ AWAIT añadido
+  const supabase = createClient();
+
+  if (!supabase) {
+    throw new Error('Supabase client is not initialized');
+  }
 
   const { data, error } = await supabase
     .from('generated_content')
@@ -151,7 +158,11 @@ export async function getPostsByCategory(slug: string) {
  * @returns A promise that resolves to matching posts
  */
 export async function searchPosts(query: string) {
-  const supabase = await createClient(); // ✅ AWAIT añadido
+  const supabase = createClient();
+
+  if (!supabase) {
+    throw new Error('Supabase client is not initialized');
+  }
 
   const { data, error } = await supabase
     .from('generated_content')
@@ -172,7 +183,11 @@ export async function searchPosts(query: string) {
  * @returns A promise that resolves to featured posts
  */
 export async function getFeaturedPosts() {
-  const supabase = await createClient(); // ✅ AWAIT añadido
+  const supabase = createClient();
+
+  if (!supabase) {
+    throw new Error('Supabase client is not initialized');
+  }
 
   const { data, error } = await supabase
     .from('generated_content')
