@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { generateMultimediaContent } from '@/lib/ai/contentGenerator'; // Import the new function
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -167,14 +168,30 @@ async function processScrapingJob(job: any): Promise<ProcessingResult> { // Espe
 async function processArticleGenerationJob(job: any): Promise<ProcessingResult> { // Especificar el tipo de retorno
   console.log(`🤖 Generando artículo con IA...`);
   // TODO: Implementar generación con IA
-  await new Promise(resolve => setTimeout(resolve, 3000)); // Simulación
+  // Assuming job.metadata contains the topic for content generation
+  const topic = job.metadata?.topic || 'default AI content topic'; // Placeholder for topic
 
-  return {
-    success: true,
-    data: {
-      generated_content: "Artículo generado por IA simulado",
-      word_count: 350,
-      ai_model: "simulated"
-    }
-  };
+  try {
+    const generatedContent = await generateMultimediaContent(topic);
+
+    return {
+      success: true,
+      data: {
+        generated_content: generatedContent.content,
+        title: generatedContent.title,
+        summary: generatedContent.summary,
+        image_descriptions: generatedContent.image_descriptions,
+        video_suggestions: generatedContent.video_suggestions,
+        tags: generatedContent.tags,
+        seo_metadata: generatedContent.seo_metadata,
+        ai_model: "Groq, Cohere, HuggingFace" // Indicate which models were used
+      }
+    };
+  } catch (error) {
+    console.error(`Error generating article for job ${job.id}:`, error);
+    return {
+      success: false,
+      error: `AI content generation failed: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 }
