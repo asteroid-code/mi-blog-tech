@@ -19,14 +19,14 @@ export class ContentGenerator {
   }
 
   async generateMultimediaContent(topic: string, category?: string): Promise<GeneratedContent> {
-    // Implementación básica inicial
+    // Implementación básica para pruebas
     return {
       title: `Artículo sobre: ${topic}`,
-      content: `Contenido generado para: ${topic}`,
+      content: `Contenido generado para: ${topic}. Categoría: ${category || 'General'}`,
       summary: `Resumen del artículo sobre ${topic}`,
-      image_descriptions: [],
-      video_suggestions: [],
-      tags: [topic, category || 'general'],
+      image_descriptions: [`Imagen relacionada con ${topic}`],
+      video_suggestions: [`Video tutorial sobre ${topic}`],
+      tags: [topic, category || 'general', 'tecnología'],
       reading_time: 5,
       word_count: 800
     };
