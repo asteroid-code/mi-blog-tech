@@ -1,17 +1,86 @@
 import Groq from 'groq-sdk';
 import { CohereClient } from 'cohere-ai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
-// --- Groq Client ---
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-  timeout: 30000, // 30 seconds timeout
-});
+interface AIClientsConfig {
+  groqApiKey?: string;
+  cohereApiKey?: string;
+  huggingFaceApiKey?: string;
+  googleApiKey?: string;
+  openaiApiKey?: string;
+}
 
+export class AIClients {
+  private groq: Groq;
+  private cohere: CohereClient;
+  private google: GoogleGenerativeAI;
+  private openai: OpenAI;
+  private huggingFaceApiKey: string | undefined;
+
+  constructor(config: AIClientsConfig) {
+    this.groq = new Groq({
+      apiKey: config.groqApiKey,
+      timeout: 30000,
+    });
+
+    this.cohere = new CohereClient({
+      token: config.cohereApiKey,
+    });
+
+    this.google = new GoogleGenerativeAI(config.googleApiKey || "");
+
+    this.openai = new OpenAI({
+      apiKey: config.openaiApiKey,
+      timeout: 30000,
+    });
+
+    this.huggingFaceApiKey = config.huggingFaceApiKey;
+  }
+
+  getGroqClient(): Groq {
+    return this.groq;
+  }
+
+  getCohereClient(): CohereClient {
+    return this.cohere;
+  }
+
+  getGoogleClient(): GoogleGenerativeAI {
+    return this.google;
+  }
+
+  getOpenAIClient(): OpenAI {
+    return this.openai;
+  }
+
+  getHuggingFaceApiKey(): string | undefined {
+    return this.huggingFaceApiKey;
+  }
+
+  validateApiKeys(): { provider: string; valid: boolean }[] {
+    return [
+      { provider: 'groq', valid: !!process.env.GROQ_API_KEY },
+      { provider: 'cohere', valid: !!process.env.COHERE_API_KEY },
+      { provider: 'huggingface', valid: !!process.env.HUGGINGFACE_API_KEY },
+      { provider: 'google', valid: !!process.env.GOOGLE_AI_API_KEY },
+      { provider: 'openai', valid: !!process.env.OPENAI_API_KEY },
+    ];
+  }
+
+  getFallbackOrder(): string[] {
+    // This can be dynamically configured or loaded from a central config
+    return ['google', 'openai', 'cohere', 'groq', 'huggingface'];
+  }
+}
+
+// Helper functions for direct API calls (can be refactored to use the AIClients class)
 export async function getGroqCompletion(messages: any[], model: string = 'llama3-8b-8192') {
   if (!process.env.GROQ_API_KEY) {
     throw new Error('GROQ_API_KEY is not set.');
   }
   try {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const chatCompletion = await groq.chat.completions.create({
       messages,
       model,
@@ -24,16 +93,12 @@ export async function getGroqCompletion(messages: any[], model: string = 'llama3
   }
 }
 
-// --- Cohere Client ---
-const cohere = new CohereClient({
-  token: process.env.COHERE_API_KEY,
-});
-
 export async function getCohereCompletion(prompt: string, model: string = 'command-r-plus') {
   if (!process.env.COHERE_API_KEY) {
     throw new Error('COHERE_API_KEY is not set.');
   }
   try {
+    const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
     const response = await cohere.chat({
       message: prompt,
       model,
@@ -46,9 +111,6 @@ export async function getCohereCompletion(prompt: string, model: string = 'comma
   }
 }
 
-// --- HuggingFace Inference API Client ---
-// For HuggingFace, we'll use a generic fetch wrapper for inference endpoints.
-// The specific model and task will determine the endpoint and payload.
 export async function getHuggingFaceInference(
   modelId: string,
   payload: any,

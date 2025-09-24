@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
-import { generateMultimediaContent } from '@/lib/ai/contentGenerator'; // Import the new function
+import { MultimediaContentGenerator } from '@/lib/ai/contentGenerator';
+import { AIClients } from '@/lib/ai/clients';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -168,23 +169,28 @@ async function processScrapingJob(job: any): Promise<ProcessingResult> { // Espe
 async function processArticleGenerationJob(job: any): Promise<ProcessingResult> { // Especificar el tipo de retorno
   console.log(`🤖 Generando artículo con IA...`);
   // TODO: Implementar generación con IA
-  // Assuming job.metadata contains the topic for content generation
-  const topic = job.metadata?.topic || 'default AI content topic'; // Placeholder for topic
+  const topic = job.metadata?.topic || 'default AI content topic';
+  const category = job.metadata?.category; // Assuming category can also be in metadata
 
   try {
-    const generatedContent = await generateMultimediaContent(topic);
+    const aiClients = new AIClients({
+      groqApiKey: process.env.GROQ_API_KEY,
+      cohereApiKey: process.env.COHERE_API_KEY,
+      huggingFaceApiKey: process.env.HUGGINGFACE_API_KEY,
+      googleApiKey: process.env.GOOGLE_AI_API_KEY,
+      openaiApiKey: process.env.OPENAI_API_KEY,
+    });
+    const contentGenerator = new MultimediaContentGenerator(aiClients);
+    const generatedContent = await contentGenerator.generateCompleteArticle(topic, category);
 
     return {
       success: true,
       data: {
+        generated_outline: generatedContent.outline,
         generated_content: generatedContent.content,
-        title: generatedContent.title,
-        summary: generatedContent.summary,
-        image_descriptions: generatedContent.image_descriptions,
-        video_suggestions: generatedContent.video_suggestions,
-        tags: generatedContent.tags,
-        seo_metadata: generatedContent.seo_metadata,
-        ai_model: "Groq, Cohere, HuggingFace" // Indicate which models were used
+        multimedia_suggestions: generatedContent.multimediaSuggestions,
+        seo_score: generatedContent.seoScore,
+        ai_model: "Google Gemini, OpenAI, Cohere, HuggingFace, Groq"
       }
     };
   } catch (error) {
