@@ -11,7 +11,11 @@ export interface Post {
   image_url: string; // Changed to required string
   post_type: 'article' | 'video' | 'tweet';
   category_id: string; // Foreign key to the 'categories' table
-  categories?: { name: string } | { name: string }[] | null;
+  categories?: { name: string; slug?: string } | { name: string; slug?: string }[] | null;
+  duration?: string; // Added for video posts
+  author?: string; // Added for video posts
+  views?: number; // Added for video posts and trending topics
+  description?: string; // Added for video posts
 }
 
 export interface Category {

@@ -1,7 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/search-input"
+import Link from "next/link"; // Import Link for navigation
+import { Category } from "@/lib/contentService"; // Import Category interface
 
-export function Header() {
+interface HeaderProps {
+  categories: Category[] | null;
+}
+
+export function Header({ categories }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 glassmorphism border-b border-border/50">
       <nav className="max-w-7xl mx-auto px-4 py-4">
@@ -17,21 +23,18 @@ export function Header() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             <nav className="flex items-center space-x-6">
-              <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
+              <Link href="/" className="text-sm font-medium hover:text-primary transition-colors">
                 Inicio
-              </a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
-                Inteligencia Artificial
-              </a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
-                Tecnología
-              </a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
-                Análisis
-              </a>
-              <a href="#" className="text-sm font-medium hover:text-primary transition-colors">
-                Tendencias
-              </a>
+              </Link>
+              {categories?.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/category/${category.slug}`}
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                >
+                  {category.name}
+                </Link>
+              ))}
             </nav>
           </div>
 

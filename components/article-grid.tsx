@@ -28,9 +28,11 @@ export function ArticleGrid({ posts }: ArticleGridProps) {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary backdrop-blur-sm">
-                    {Array.isArray(post.categories)
-                      ? post.categories[0]?.name || 'General'
-                      : post.categories?.name || 'General'}
+                    {post.categories
+                      ? Array.isArray(post.categories)
+                        ? post.categories[0]?.name || 'General'
+                        : post.categories.name || 'General'
+                      : 'General'}
                   </span>
                 </div>
 

@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'; // Using service_role key
 import * as cheerio from 'cheerio';
 import { ScrapedContent2025 } from '../../types/scraping';
 import { GeneratedContent } from '../../types/ai';
+import { AIManager } from '../ai/aiManager';
+import { ContentGenerator } from '../ai/contentGenerator';
 
 // Define job types and statuses
 type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -125,7 +127,11 @@ async function processScrapingJob(job: ProcessingJob) {
   }
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch URL: ${url} - Status: ${response.status}`);
     }
@@ -162,32 +168,64 @@ async function processScrapingJob(job: ProcessingJob) {
   }
 }
 
-async function processAIGenerationJob(job: ProcessingJob) {
+async function processAIGenerationJob(job: ProcessingJob): Promise<{ generatedTitle: string; generatedContentId: string }> {
   const { prompt, original_content_id } = job.payload;
 
   if (!prompt || !original_content_id) {
     throw new Error('AI generation job payload is missing required fields (prompt, original_content_id).');
   }
 
-  // Simulate AI call
-  console.log(`Simulating AI generation for prompt: "${prompt}"`);
-  await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate network delay
+  // 1. Fetch original content
+  const { data: originalContentData, error: fetchError } = await supabase
+    .from('original_content')
+    .select('content, title, language')
+    .eq('id', original_content_id)
+    .single();
 
-  const generatedContent: GeneratedContent = {
-    title: `AI Generated Article for ${original_content_id}`,
-    content: `This is a simulated AI-generated content based on the prompt: "${prompt}". It's a placeholder for actual AI output.`,
-    summary: 'Simulated summary.',
-    image_descriptions: ['simulated image 1', 'simulated image 2'],
-    video_suggestions: ['simulated video 1'],
-    tags: ['AI', 'simulated', 'tech'],
-    reading_time: 5,
-    word_count: 500,
-  };
-
-  const { error } = await supabase.from('generated_content').insert([generatedContent]);
-
-  if (error) {
-    throw new Error(`Error saving AI generated content: ${error.message}`);
+  if (fetchError) {
+    throw new Error(`Error fetching original content with ID ${original_content_id}: ${fetchError.message}`);
   }
-  console.log(`AI generated content for original_content_id ${original_content_id} saved to generated_content.`);
+  if (!originalContentData) {
+    throw new Error(`Original content with ID ${original_content_id} not found.`);
+  }
+
+  const originalContentText = originalContentData.content;
+  const originalContentTitle = originalContentData.title;
+  const originalContentLanguage = originalContentData.language;
+
+  // 2. Prepare AI prompt
+  const fullPrompt = `Given the following original article titled "${originalContentTitle}" and its content:
+"${originalContentText}"
+
+Please ${prompt} this article. The output should be a comprehensive article including a new title, the main content, a summary, image descriptions, video suggestions, and relevant tags. The language should be ${originalContentLanguage}.`;
+
+  console.log(`Initiating AI generation for original_content_id: ${original_content_id}`);
+
+  // 3. Call Multi-IA system
+  const contentGenerator = new ContentGenerator();
+  const generatedContent: GeneratedContent = await contentGenerator.generateMultimediaContent(fullPrompt);
+
+  // 4. Insert generated content
+  const { data: insertData, error: insertError } = await supabase
+    .from('generated_content')
+    .insert([generatedContent])
+    .select('id') // Select the ID of the newly inserted row
+    .single();
+
+  if (insertError) {
+    throw new Error(`Error saving AI generated content: ${insertError.message}`);
+  }
+  if (!insertData) {
+    throw new Error('Failed to retrieve ID of newly generated content.');
+  }
+
+  const generatedContentId = insertData.id;
+
+  console.log(`AI generated content for original_content_id ${original_content_id} saved to generated_content with ID: ${generatedContentId}.`);
+
+  // 5. Return generated article details
+  return {
+    generatedTitle: generatedContent.title,
+    generatedContentId: generatedContentId,
+  };
 }

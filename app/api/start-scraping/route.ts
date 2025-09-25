@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
     let query = supabase
       .from('scraping_sources')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .eq('user_id', userId); // Added user_id filter
 
     if (sourceId) {
       query = query.eq('id', sourceId);
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
           .select('id')
           .eq('source_id', source.id)
           .eq('status', 'pending')
-          .single();
+          .maybeSingle(); // Changed to maybeSingle()
 
         if (existingJob) {
           errors.push({ source_id: source.id, error: 'Pending job exists' });

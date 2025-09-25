@@ -10,26 +10,28 @@ import { useToast } from "@/components/ui/use-toast"; // Assuming a toast compon
 
 import { Category } from "@/lib/contentService"; // Import Category interface
 
+// Define interfaces for sidebar data
+interface Stat {
+  label: string;
+  value: string;
+  change: string;
+}
+
+interface TrendingTopic {
+  topic: string;
+  count: string;
+  trend: string;
+  slug: string;
+}
+
 // Define the props for the Sidebar component
 interface SidebarProps {
   categories: Category[] | null;
+  stats: Stat[];
+  trendingTopics: TrendingTopic[];
 }
 
-const trendingTopics = [
-  { topic: "GPT-5 Release", count: "2.1k menciones", trend: "+45%" },
-  { topic: "Quantum Computing", count: "1.8k menciones", trend: "+32%" },
-  { topic: "Tesla Bot", count: "1.5k menciones", trend: "+28%" },
-  { topic: "Apple M4", count: "1.2k menciones", trend: "+19%" },
-  { topic: "Meta Llama 3", count: "987 menciones", trend: "+15%" },
-]
-
-const stats = [
-  { label: "Artículos Generados", value: "12,847", change: "+23%" },
-  { label: "Lectores Activos", value: "89.2k", change: "+18%" },
-  { label: "Temas Cubiertos", value: "1,234", change: "+12%" },
-]
-
-export function Sidebar({ categories }: SidebarProps) {
+export function Sidebar({ categories, stats, trendingTopics }: SidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentCategory = searchParams.get('category');
@@ -103,7 +105,7 @@ export function Sidebar({ categories }: SidebarProps) {
         </div>
         <div className="space-y-3">
           {trendingTopics.map((item, index) => (
-            <div key={index} className="flex items-center justify-between group cursor-pointer">
+            <Link href={`/articles/${item.slug}`} key={index} className="flex items-center justify-between group cursor-pointer">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-primary w-6">#{index + 1}</span>
                 <div>
@@ -114,7 +116,7 @@ export function Sidebar({ categories }: SidebarProps) {
                 </div>
               </div>
               <span className="text-xs text-green-400 font-medium">{item.trend}</span>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
