@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 // Interface for a single post, ensuring type safety.
 export interface Post {
   id: string; // Changed to required string
+  slug: string; // Added slug for dynamic routing
   created_at?: string;
   title: string;
   summary: string;

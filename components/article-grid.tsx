@@ -13,7 +13,7 @@ export function ArticleGrid({ posts }: ArticleGridProps) {
 
       <div className="grid md:grid-cols-2 gap-6">
         {posts?.map((post) => (
-          <Link href={`/articles/${post.id}`} key={post.id} className="block">
+          <Link href={`/articles/${post.slug}`} key={post.id} className="block">
             <article
             className="group relative overflow-hidden rounded-xl aspect-video bg-card border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/5 transform-gpu cursor-pointer"
           >

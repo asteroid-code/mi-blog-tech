@@ -1,62 +1,64 @@
-import { getPostById, Post } from "@/lib/contentService"
-import { Comments } from "@/components/comments"
-import { LikeButton } from "@/components/like-button"
-import { createClient } from "@/lib/supabase/server" // Server-side Supabase client for initial likes fetch
+import { createClient } from '../../../lib/supabase/server'; // Correct path for server-side Supabase client
+import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers'; // Import cookies
+import { GeneratedContent } from '../../../types/ai'; // Adjust path as needed
 
-export default async function ArticleDetailPage({ params }: { params: { slug: string | undefined } }) {
-  let post: Post | null = null;
-  let error: Error | null = null;
+interface ArticlePageProps {
+  params: {
+    slug: string;
+  };
+}
 
-  if (!params.slug) {
-    return (
-      <main className="max-w-4xl mx-auto p-8">
-        <h1 className="text-3xl font-bold text-red-500">Error: Slug no proporcionado</h1>
-        <p className="mt-4 text-gray-600">No se ha proporcionado un identificador de artículo válido.</p>
-      </main>
-    );
+export default async function ArticlePage({ params }: ArticlePageProps) {
+  const cookieStore = cookies(); // Get cookie store
+  const supabase = await createClient(cookieStore); // Initialize server-side Supabase client with cookieStore
+  const { slug } = params;
+
+  // Fetch article data from 'generated_content' table
+  const { data: article, error } = await supabase
+    .from('generated_content')
+    .select('*')
+    .eq('slug', slug) // Assuming 'slug' column exists in generated_content
+    .single();
+
+  if (error) {
+    console.error('Error fetching article:', error);
+    // Depending on the error, you might want to show a different message or log
+    // For now, if no article is found, we'll treat it as notFound
+    if (error.code === 'PGRST116') { // No rows found
+      notFound();
+    }
+    // For other database errors, you might want to throw or show a generic error
+    throw new Error('Failed to fetch article data.');
   }
 
-  try {
-    post = await getPostById(params.slug);
-  } catch (e) {
-    error = e as Error;
+  if (!article) {
+    notFound(); // Show 404 page if article is not found
   }
 
-  if (error || !post) {
-    return (
-      <main className="max-w-4xl mx-auto p-8">
-        <h1 className="text-3xl font-bold text-red-500">Artículo no encontrado</h1>
-        <p className="mt-4 text-gray-600">Lo sentimos, el artículo que buscas no existe o ha sido eliminado.</p>
-      </main>
-    )
-  }
-
-  // Fetch initial likes count
-  const cookieStore = cookies();
-  const supabase = await createClient(cookieStore);
-  const { count: initialLikes, error: likesError } = await supabase
-    .from("likes")
-    .select("count", { count: "exact", head: true })
-    .eq("article_id", post.id || ''); // Provide a default empty string if post.id is undefined
-
-  if (likesError) {
-    console.error("Error fetching initial likes:", likesError);
-  }
+  // Cast to GeneratedContent type for better type safety
+  const generatedArticle = article as GeneratedContent & { slug: string }; // Assuming slug is also part of the fetched data
 
   return (
-    <main className="max-w-4xl mx-auto p-8">
-      <article className="prose prose-lg dark:prose-invert">
-        <h1 className="text-4xl font-bold mb-6">{post.title}</h1>
-        <div className="mt-8 space-y-4">
-          {post.content}
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold mb-4">{generatedArticle.title}</h1>
+      <div className="prose lg:prose-xl max-w-none">
+        {/* Render content, assuming it's HTML or Markdown that Next.js can handle */}
+        <p>{generatedArticle.content}</p>
+      </div>
+      {/* You might want to display other details like summary, tags, etc. */}
+      {generatedArticle.summary && (
+        <p className="mt-4 text-gray-600 italic">{generatedArticle.summary}</p>
+      )}
+      {generatedArticle.tags && generatedArticle.tags.length > 0 && (
+        <div className="mt-4">
+          {generatedArticle.tags.map((tag, index) => (
+            <span key={index} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">
+              #{tag}
+            </span>
+          ))}
         </div>
-        {/* Like Button */}
-        <LikeButton articleId={post.id || ''} initialLikes={initialLikes || 0} />
-      </article>
-
-      {/* Comments Section */}
-      <Comments articleId={post.id || ''} />
-    </main>
+      )}
+    </div>
   );
 }
