@@ -1,0 +1,18 @@
+name: Start Hourly Scraping Jobs
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  start-scraping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call API to start scraping jobs
+        env:
+          API_URL: ${{ secrets.VERCEL_PROJECT_URL }}
+          API_TOKEN: ${{ secrets.API_SECRET_TOKEN }}
+          ADMIN_ID: ${{ secrets.ADMIN_USER_ID }}
+        run: 'curl -X POST "$API_URL/api/start-scraping" -H "Authorization: Bearer $API_TOKEN" -H "Content-Type: application/json" -d "{\"userId\": \"$ADMIN_ID\", \"jobType\": \"scrape_url\"}"'
