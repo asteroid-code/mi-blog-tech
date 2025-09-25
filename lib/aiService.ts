@@ -1,5 +1,6 @@
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js'; // For direct Supabase client in cascade
+import { cookies } from 'next/headers'; // Import cookies for local use in methods
 
 // Cargar la clave de API de HuggingFace desde las variables de entorno
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
@@ -32,17 +33,15 @@ type ProviderType = 'grok' | 'huggingface' | 'cohere';
 const PROVIDER_PREFERENCE: ProviderType[] = ['grok', 'huggingface', 'cohere'];
 
 class AIService {
-  private supabase;
-
-  constructor() {
-    this.supabase = createServerSupabaseClient();
-  }
+  // No inicializamos supabase en el constructor. Se creará en cada método que lo necesite.
 
   /**
    * Obtiene los proveedores de IA activos y configurados.
    */
   async getAvailableProviders(): Promise<ApiConfiguration[]> {
-    const { data, error } = await (await this.supabase)
+    const cookieStore = cookies();
+    const supabase = await createServerSupabaseClient(cookieStore);
+    const { data, error } = await supabase
       .from('api_configurations')
       .select('*')
       .eq('is_active', true);
@@ -76,7 +75,9 @@ class AIService {
    * Registra el uso de la API en la base de datos.
    */
   private async logApiUsage(usage: Omit<ApiUsage, 'id' | 'created_at'>): Promise<void> {
-    const { error } = await (await this.supabase).from('api_usage').insert([usage]);
+    const cookieStore = cookies();
+    const supabase = await createServerSupabaseClient(cookieStore);
+    const { error } = await supabase.from('api_usage').insert([usage]);
     if (error) {
       console.error('Error logging API usage:', error);
     }
@@ -86,7 +87,9 @@ class AIService {
    * Genera texto utilizando el mejor proveedor disponible.
    */
   async generateText(prompt: string, userId: string, type: 'creative' | 'specific' | 'structured'): Promise<string | null> {
-    const { data: profile, error: profileError } = await (await this.supabase)
+    const cookieStore = cookies();
+    const supabase = await createServerSupabaseClient(cookieStore);
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
       .eq('id', userId)
@@ -152,7 +155,7 @@ class AIService {
 
         // Si la llamada es exitosa
         const newCredits = userCredits - cost;
-        await (await this.supabase).from('profiles').update({ credits: newCredits }).eq('id', userId);
+        await supabase.from('profiles').update({ credits: newCredits }).eq('id', userId);
 
         await this.logApiUsage({
           provider,
@@ -236,7 +239,9 @@ class AIService {
       prompt = `Rewrite the following text: ${content}`;
     }
 
-    const { data: profile, error: profileError } = await (await this.supabase)
+    const cookieStore = cookies();
+    const supabase = await createServerSupabaseClient(cookieStore);
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
       .eq('id', userId)
@@ -261,7 +266,7 @@ class AIService {
 
       if (improvedText) {
         const newCredits = userCredits - cost;
-        await (await this.supabase).from('profiles').update({ credits: newCredits }).eq('id', userId);
+        await supabase.from('profiles').update({ credits: newCredits }).eq('id', userId);
 
         await this.logApiUsage({
           provider: 'huggingface',
@@ -286,7 +291,8 @@ class AIService {
     console.log('🚀 Iniciando cascada de 3 IA desde AIService...');
 
     let job: any = null; // Declare job outside try block
-    const supabase = await createServerSupabaseClient(); // Usar el cliente de servidor
+    const cookieStore = cookies();
+    const supabase = await createServerSupabaseClient(cookieStore); // Usar el cliente de servidor con cookies
 
     try {
       // 1. CREAR JOB DE PROCESAMIENTO (Capa 1)
@@ -438,7 +444,8 @@ class AIService {
 
   // FUNCIONES AUXILIARES (adaptadas como métodos privados)
   private async updateJobProgress(jobId: string, progress: number, data: any) {
-    const supabase = await createServerSupabaseClient();
+    const cookieStore = cookies();
+    const supabase = await createServerSupabaseClient(cookieStore);
     await supabase
       .from('processing_jobs')
       .update({

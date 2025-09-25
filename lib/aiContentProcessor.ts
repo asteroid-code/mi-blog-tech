@@ -1,5 +1,6 @@
 import { aiService } from './aiService';
 import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 interface ContentProcessingJob {
   id: number;
@@ -16,7 +17,8 @@ class AIContentProcessor {
    * Procesa un trabajo de mejora de contenido utilizando el AIService.
    */
   async processContentJob(jobId: number): Promise<void> {
-    const supabase = await createClient();
+    const cookieStore = cookies();
+    const supabase = await createClient(cookieStore);
     // 1. Obtener el trabajo de la base de datos
     const { data: job, error: fetchError } = await supabase
       .from('content_processing_jobs')

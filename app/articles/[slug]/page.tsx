@@ -2,6 +2,7 @@ import { getPostById, Post } from "@/lib/contentService"
 import { Comments } from "@/components/comments"
 import { LikeButton } from "@/components/like-button"
 import { createClient } from "@/lib/supabase/server" // Server-side Supabase client for initial likes fetch
+import { cookies } from 'next/headers'; // Import cookies
 
 export default async function ArticleDetailPage({ params }: { params: { slug: string | undefined } }) {
   let post: Post | null = null;
@@ -32,7 +33,8 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
   }
 
   // Fetch initial likes count
-  const supabase = await createClient();
+  const cookieStore = cookies();
+  const supabase = await createClient(cookieStore);
   const { count: initialLikes, error: likesError } = await supabase
     .from("likes")
     .select("count", { count: "exact", head: true })

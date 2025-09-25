@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
+import { cookies } from 'next/headers'; // Import cookies
 
 class QualityChecker {
   /**
@@ -22,7 +23,8 @@ class QualityChecker {
   async detectDuplicateContent(content: string, articleIdToExclude?: number): Promise<boolean> {
     const contentHash = this.calculateContentHash(content);
 
-    const supabase = await createClient();
+    const cookieStore = cookies();
+    const supabase = await createClient(cookieStore);
     let query = supabase
       .from('articles')
       .select('id')
@@ -103,7 +105,8 @@ class QualityChecker {
     const { isLowQuality, score: qualityScore } = await this.detectLowQuality(content);
 
     // Opcional: Actualizar la base de datos con los resultados de la calidad
-    const supabase = await createClient();
+    const cookieStore = cookies();
+    const supabase = await createClient(cookieStore);
     await supabase
       .from('articles')
       .update({ is_duplicate: isDuplicate, is_low_quality: isLowQuality, quality_score: qualityScore })
