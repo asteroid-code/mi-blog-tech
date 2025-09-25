@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from './supabaseClient';
 
 // Interface for a single post, ensuring type safety.
 export interface Post {

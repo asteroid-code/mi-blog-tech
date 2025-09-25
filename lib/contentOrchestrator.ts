@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers'; // Import cookies
 import { aiService } from './aiService';
 // import { aiContentProcessor } from './aiContentProcessor'; // No longer directly used for cascade
 import { qualityChecker } from './qualityChecker';
-import { startScrapingScheduler } from './cron/scrapingScheduler';
+import { scheduleScraping } from './cron/scrapingScheduler';
 
 export class ContentOrchestrator {
   constructor() {
@@ -15,7 +16,7 @@ export class ContentOrchestrator {
   public async scheduleScraping(): Promise<void> {
     console.log('Scheduling scraping tasks...');
     // Esto delegará al módulo de cron para iniciar los temporizadores
-    startScrapingScheduler();
+    scheduleScraping();
   }
 
   /**
@@ -24,7 +25,7 @@ export class ContentOrchestrator {
   public async processNewContent(): Promise<void> {
     console.log('Starting to process new content...');
     try {
-      const supabase = await createClient();
+      const supabase = await createClient(cookies());
       // 1. Obtener contenido scrapeado no procesado
       const { data: unscrapedContent, error: fetchError } = await supabase
         .from('original_content')
@@ -99,7 +100,7 @@ export class ContentOrchestrator {
   public async autoPublish(): Promise<void> {
     console.log('Starting auto-publish process...');
     try {
-      const supabase = await createClient();
+      const supabase = await createClient(cookies());
       // 1. Obtener contenido pendiente de revisión de 'generated_content'
       const { data: pendingContent, error: fetchError } = await supabase
         .from('generated_content')
@@ -123,7 +124,7 @@ export class ContentOrchestrator {
         const { isDuplicate, isLowQuality, qualityScore } = await qualityChecker.checkArticleQuality(article.id, article.content);
 
         if (!isDuplicate && !isLowQuality && qualityScore >= 70) { // Umbral de calidad para auto-publicar
-          const supabaseInner = await createClient();
+          const supabaseInner = await createClient(cookies());
           const { error: publishError } = await supabaseInner
             .from('generated_content') // Actualizar la tabla generated_content
             .update({ status: 'published', published_at: new Date().toISOString(), is_published_to_site: true })
@@ -139,7 +140,7 @@ export class ContentOrchestrator {
                       `Duplicado: ${isDuplicate}, Baja Calidad: ${isLowQuality}, Puntuación: ${qualityScore}. ` +
                       `Manteniendo como 'published' pero no publicado en el sitio.`);
           // Opcional: Actualizar estado a 'rejected' o 'needs_manual_review'
-          const supabaseInner = await createClient();
+          const supabaseInner = await createClient(cookies());
           await supabaseInner
             .from('generated_content')
             .update({ status: 'needs_manual_review' }) // Nuevo estado para revisión manual

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabaseClient';
-import { ScraperManager } from '@/lib/automation/scraperManager';
+import { ScraperManager2025 } from '@/lib/scraperManager';
 import { ContentGenerator, GeneratedContent } from '@/lib/ai/contentGenerator'; // Removed OriginalContent, added GeneratedContent
 import { AIClients } from '@/lib/ai/clients';
 
@@ -27,10 +27,10 @@ interface ProcessingJob {
 
 export class ProcessingWorker {
   private supabase = createClient();
-  private scraperManager: ScraperManager;
+  private scraperManager: ScraperManager2025;
   private contentGenerator: ContentGenerator;
   constructor() {
-    this.scraperManager = new ScraperManager();
+    this.scraperManager = new ScraperManager2025();
     this.contentGenerator = new ContentGenerator();
   }
 
