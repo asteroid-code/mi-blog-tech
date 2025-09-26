@@ -84,7 +84,7 @@ export default function SourcesPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manage Scraping Sources</h1>
         <Button asChild>
-          <Link href="/sources/new">Add New Source</Link>
+          <Link href="/admin/sources/new">Add New Source</Link>
         </Button>
       </div>
       <div className="border rounded-lg">

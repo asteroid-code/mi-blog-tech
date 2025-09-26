@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { normalizeCategories } from "@/lib/utils/categories";
 import { Post } from "@/lib/contentService";
 
 interface FeaturedArticleProps {
@@ -15,18 +14,7 @@ export function FeaturedArticle({ post }: FeaturedArticleProps) {
       <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/30 opacity-70" />
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-4">
-          {post.categories && (Array.isArray(post.categories) ? (
-            post.categories.map((category: { name: string, slug?: string }) => (
-              <Link
-                key={category.slug}
-                href={`/category/${category.slug}`}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
-              >
-                <span className="text-xs">✨</span>
-                {category.name}
-              </Link>
-            ))
-          ) : (
+          {post.categories && (
             <Link
               key={post.categories.slug}
               href={`/category/${post.categories.slug}`}
@@ -35,7 +23,7 @@ export function FeaturedArticle({ post }: FeaturedArticleProps) {
               <span className="text-xs">✨</span>
               {post.categories.name}
             </Link>
-          ))}
+          )}
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary/20 text-secondary border border-secondary/30">
             Destacado
           </span>

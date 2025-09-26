@@ -3,18 +3,21 @@ import { ScraperManager2025 } from '@/lib/scraperManager';
 import { createClient } from '@/lib/supabaseClient';
 
 export async function POST(request: Request) {
-  // Verificación de seguridad para producción
-  const authHeader = request.headers.get('authorization');
   const expectedSecret = process.env.CRON_SECRET;
 
-  if (!expectedSecret || authHeader !== `Bearer ${expectedSecret}`) {
+  if (!expectedSecret) {
+    throw new Error('CRON_SECRET is not defined in environment variables.');
+  }
+
+  // Verificación de seguridad para producción
+  const authHeader = request.headers.get('authorization');
+
+  if (authHeader !== `Bearer ${expectedSecret}`) {
     console.warn('Intento de acceso no autorizado al endpoint de scraping');
     return new Response('Unauthorized', { status: 401 });
   }
 
   try {
-    console.log('🚀 Iniciando scraping automático en producción...');
-
     const scraper = new ScraperManager2025();
     const result = await scraper.startAutomatedScraping();
 

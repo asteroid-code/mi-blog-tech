@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react" // Import Suspense
 import Link from "next/link"
 import Image from "next/image"
 import { Menu, X, Sun, Moon } from "lucide-react"
@@ -99,7 +99,9 @@ export function ResponsiveHeader({ categories }: ResponsiveHeaderProps) {
         {/* Search Bar & Mobile Menu Button & Theme Toggle */}
         <div className="flex items-center gap-4 md:gap-6">
           <div className="hidden md:block">
-            <SearchInput />
+            <Suspense fallback={<div>Loading Search...</div>}>
+              <SearchInput />
+            </Suspense>
           </div>
           {mounted && (
             <button
@@ -165,7 +167,9 @@ export function ResponsiveHeader({ categories }: ResponsiveHeaderProps) {
           </ul>
         </nav>
         <div className="flex justify-center pb-4 md:hidden">
-          <SearchInput />
+          <Suspense fallback={<div>Loading Search...</div>}>
+            <SearchInput />
+          </Suspense>
         </div>
       </div>
 

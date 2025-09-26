@@ -1,5 +1,4 @@
 import Image from "next/image"
-import { normalizeCategories } from "@/lib/utils/categories";
 import Link from "next/link"
 
 import { Post } from "@/lib/contentService"; // Ensure Post interface is correctly imported
@@ -41,14 +40,14 @@ export function HeroSection({ post }: HeroSectionProps) {
 
           {/* Category Pills */}
           <div className="flex flex-wrap justify-center gap-3">
-            {normalizeCategories(post.categories).map((category: { id: string, name: string, slug?: string }) => (
+            {post.categories && (
               <span
-                key={category.name}
+                key={post.categories.name}
                 className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
               >
-                {category.name}
+                {post.categories.name}
               </span>
-            ))}
+            )}
           </div>
         </div>
       </section>

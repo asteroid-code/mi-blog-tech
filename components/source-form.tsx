@@ -221,24 +221,13 @@ export default function SourceForm({ sourceId, onSubmit, initialData }: SourceFo
         <Label htmlFor="last_success_rate">
           Last Success Rate: {form.watch("last_success_rate")}%
         </Label>
-        <Controller
-          name="last_success_rate"
-          control={form.control}
-          render={({ field }) => (
-            <Input
-              id="last_success_rate"
-              type="number"
-              min="0"
-              max="100"
-              {...field}
-              onChange={(e) => field.onChange(Number(e.target.value))}
-              required
-            />
-          )}
+        {/* Display as read-only, assuming it's a metric rather than an editable field */}
+        <Input
+          id="last_success_rate"
+          value={form.watch("last_success_rate")}
+          readOnly
+          className="bg-muted"
         />
-        {form.formState.errors.last_success_rate && (
-          <p className="text-red-500 text-sm mt-1">{form.formState.errors.last_success_rate.message}</p>
-        )}
       </div>
       <Button type="submit" disabled={loading}>
         {loading ? "Saving..." : "Save Source"}

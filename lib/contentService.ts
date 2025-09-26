@@ -11,7 +11,7 @@ export interface Post {
   image_url: string; // Changed to required string
   post_type: 'article' | 'video' | 'tweet';
   category_id: string; // Foreign key to the 'categories' table
-  categories?: { name: string; slug?: string } | { name: string; slug?: string }[] | null;
+  categories?: { name: string; slug: string; } | null;
   duration?: string; // Added for video posts
   author?: string; // Added for video posts
   views?: number; // Added for video posts and trending topics
@@ -59,7 +59,15 @@ export async function getPosts({
 
     if (error) throw error;
 
-    return { posts: posts || [], count: count || 0 };
+    // Transform the data to ensure categories is a single object or null
+    const transformedPosts = posts?.map(post => ({
+      ...post,
+      categories: Array.isArray(post.categories) && post.categories.length > 0
+        ? post.categories[0]
+        : null,
+    })) as Post[];
+
+    return { posts: transformedPosts || [], count: count || 0 };
   } catch (error: any) {
     console.error('Error in getPosts:', error);
     return { posts: [], count: 0, error: error.message };
@@ -83,7 +91,15 @@ export async function getPostById(id: string) {
     throw new Error('Could not fetch the specified post.');
   }
 
-  return data;
+  // Transform the data to ensure categories is a single object or null
+  const transformedData = {
+    ...data,
+    categories: Array.isArray(data.categories) && data.categories.length > 0
+      ? data.categories[0]
+      : null,
+  } as Post;
+
+  return transformedData;
 }
 
 /**
@@ -103,7 +119,15 @@ export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
     throw new Error('Could not create a new post.');
   }
 
-  return data;
+  // Transform the data to ensure categories is a single object or null
+  const transformedData = {
+    ...data,
+    categories: Array.isArray(data.categories) && data.categories.length > 0
+      ? data.categories[0]
+      : null,
+  } as Post;
+
+  return transformedData;
 }
 
 /**
@@ -114,7 +138,7 @@ export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
 export async function getPostsByCategory(slug: string) {
   const { data, error } = await supabase
     .from('generated_content')
-    .select('id, slug, created_at, title, summary, image_url, post_type, categories(name, slug)')
+    .select('*, categories(name, slug)')
     .eq('categories.slug', slug)
     .order('created_at', { ascending: false });
 
@@ -123,7 +147,15 @@ export async function getPostsByCategory(slug: string) {
     throw new Error('Could not fetch posts for this category.');
   }
 
-  return data;
+  // Transform the data to ensure categories is a single object or null
+  const transformedData = data?.map(post => ({
+    ...post,
+    categories: Array.isArray(post.categories) && post.categories.length > 0
+      ? post.categories[0]
+      : null,
+  })) as Post[];
+
+  return transformedData || [];
 }
 
 /**
@@ -143,7 +175,15 @@ export async function searchPosts(query: string) {
     throw new Error('Could not search posts.');
   }
 
-  return data;
+  // Transform the data to ensure categories is a single object or null
+  const transformedData = data?.map(post => ({
+    ...post,
+    categories: Array.isArray(post.categories) && post.categories.length > 0
+      ? post.categories[0]
+      : null,
+  })) as Post[];
+
+  return transformedData || [];
 }
 
 /**

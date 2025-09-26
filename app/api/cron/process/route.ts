@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ProcessingWorker } from '@/lib/workers/processingWorker';
 
 export async function GET(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret) {
+    throw new Error('CRON_SECRET is not defined in environment variables.');
+  }
+
   // Verificar secret key de cron
-  if (request.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (request.headers.get('Authorization') !== `Bearer ${cronSecret}`) {
     return new Response('Unauthorized', { status: 401 });
   }
 

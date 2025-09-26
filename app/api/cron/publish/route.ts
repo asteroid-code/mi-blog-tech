@@ -5,8 +5,14 @@ export const dynamic = 'force-dynamic'; // Asegura que la ruta no sea estáticam
 
 
 export async function POST(request: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret) {
+    throw new Error('CRON_SECRET is not defined in environment variables.');
+  }
+
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return new Response('Unauthorized', { status: 401 });
   }
 

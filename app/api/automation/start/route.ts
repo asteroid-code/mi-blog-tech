@@ -1,8 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // Import NextRequest
 import { ProcessingWorker } from '@/lib/workers/processingWorker';
 
-export async function POST() {
+export async function POST(request: NextRequest) { // Add request parameter
   try {
+    const apiSecretToken = process.env.API_SECRET_TOKEN;
+    if (!apiSecretToken) {
+      throw new Error('API_SECRET_TOKEN is not defined in environment variables.');
+    }
+
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || authHeader !== `Bearer ${apiSecretToken}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const worker = new ProcessingWorker();
     await worker.processPendingJobs();
 

@@ -1,21 +1,17 @@
-import { supabase } from '@/lib/supabaseClient';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { ArticleGrid } from '@/components/article-grid';
-import { slugify } from '@/lib/utils/slugify';
+import { getCategories, getPostsByCategory } from '@/lib/contentService';
 
 type Props = {
   params: { slug: string };
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { data: category, error } = await supabase
-    .from('categories')
-    .select('name, description, slug')
-    .eq('slug', params.slug)
-    .single();
+  const categories = await getCategories();
+  const category = categories.find(cat => cat.slug === params.slug);
 
-  if (error || !category) {
+  if (!category) {
     return {
       title: 'Categoría no encontrada',
       description: 'La categoría que buscas no existe.',
@@ -24,36 +20,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `Artículos de ${category.name}`,
-    description: category.description || `Explora los últimos artículos en la categoría de ${category.name}.`,
+    description: `Explora los últimos artículos en la categoría de ${category.name}.`,
   };
 }
 
 export async function generateStaticParams() {
-  const { data: categories, error } = await supabase.from('categories').select('name');
-
-  if (error) {
-    return [];
-  }
-
+  const categories = await getCategories();
   return categories.map((category) => ({
-    slug: slugify(category.name),
+    slug: category.slug,
   }));
 }
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = params;
 
-  const { data: category, error } = await supabase
-    .from('categories')
-    .select('name, generated_content(*, categories(name, slug))')
-    .eq('slug', slug)
-    .single();
+  const categories = await getCategories();
+  const category = categories.find(cat => cat.slug === slug);
 
-  if (error || !category) {
+  if (!category) {
     notFound();
   }
 
-  const posts = category.generated_content;
+  const posts = await getPostsByCategory(slug);
 
   if (!posts || posts.length === 0) {
     return (

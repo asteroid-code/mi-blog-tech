@@ -18,6 +18,14 @@ const nextConfig = {
     //   },
     // ],
   },
+  webpack: (config, { isServer }) => {
+    // Disable filesystem cache to prevent "Serializing big strings" warnings
+    // This might increase build times slightly but resolves the warning.
+    config.cache = {
+      type: 'memory', // Use memory cache instead of filesystem
+    };
+    return config;
+  },
 };
 
 const sentryWebpackPluginOptions = {
