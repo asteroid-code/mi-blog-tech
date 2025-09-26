@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { normalizeCategories } from "@/lib/utils/categories";
 import { Post } from "@/lib/contentService";
 
 interface FeaturedArticleProps {
@@ -9,59 +10,58 @@ export function FeaturedArticle({ post }: FeaturedArticleProps) {
   if (!post) return null;
 
   return (
-    <Link href={`/articles/${post.id}`} className="block">
-      <article className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-card to-card/80 p-6 border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/10 transform-gpu">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-4">
-            {post.categories && (
-              Array.isArray(post.categories) ? (
-                post.categories.map((category) => (
-                  <span
-                    key={category.name}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
-                  >
-                    <span className="text-xs">✨</span>
-                    {category.name}
-                  </span>
-                ))
-              ) : (
-                <span
-                  key={post.categories.name}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
-                >
-                  <span className="text-xs">✨</span>
-                  {post.categories.name}
-                </span>
-              )
-            )}
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary/20 text-secondary border border-secondary/30">
-              Destacado
-            </span>
-          </div>
+    <article className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-card to-card/80 p-6 border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/10 transform-gpu">
+      <Link href={`/articles/${post.slug}`} className="block absolute inset-0 z-20" />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/30 opacity-70" />
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-4">
+          {post.categories && (Array.isArray(post.categories) ? (
+            post.categories.map((category: { name: string, slug?: string }) => (
+              <Link
+                key={category.slug}
+                href={`/category/${category.slug}`}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
+              >
+                <span className="text-xs">✨</span>
+                {category.name}
+              </Link>
+            ))
+          ) : (
+            <Link
+              key={post.categories.slug}
+              href={`/category/${post.categories.slug}`}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30"
+            >
+              <span className="text-xs">✨</span>
+              {post.categories.name}
+            </Link>
+          ))}
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary/20 text-secondary border border-secondary/30">
+            Destacado
+          </span>
+        </div>
 
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 text-foreground text-balance">
-            {post.title}
-          </h2>
+        <h2 className="text-2xl md:text-3xl font-bold mb-4 text-foreground text-balance">
+          {post.title}
+        </h2>
 
-          <p className="text-muted-foreground mb-6 text-pretty leading-relaxed">
-            {post.summary}
-          </p>
+        <p className="text-muted-foreground mb-6 text-pretty leading-relaxed">
+          {post.summary}
+        </p>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <span className="text-primary-foreground text-xs">👤</span>
-                </div>
-                <span className="text-sm font-mono text-muted-foreground">
-                  AI • {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'N/A'}
-                </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <span className="text-primary-foreground text-xs">👤</span>
               </div>
+              <span className="text-sm font-mono text-muted-foreground">
+                AI • {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'N/A'}
+              </span>
             </div>
           </div>
         </div>
-      </article>
-    </Link>
+      </div>
+    </article>
   );
 }

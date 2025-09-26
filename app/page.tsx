@@ -1,4 +1,3 @@
-import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero-section"
 import { FeaturedArticle } from "@/components/featured-article"
 import { ArticleGrid } from "@/components/article-grid"
@@ -38,6 +37,19 @@ export default async function Page({ searchParams }: HomePageProps) {
 
   const featuredPost: Post | undefined = postsData?.[0];
   const gridPosts: Post[] = postsData?.slice(1) || [];
+
+  // LOGS DE DIAGNÓSTICO - ELIMINAR DESPUÉS
+  console.log('🔍 DIAGNÓSTICO ARTICLEGRID');
+  console.log('Total de posts:', totalPosts);
+  console.log('Datos de posts:', postsData);
+  console.log('Cantidad de posts:', postsData?.length || 0);
+  console.log('Post destacado:', featuredPost?.title);
+  console.log('Posts para el grid:', gridPosts?.length || 0);
+  console.log('Parámetros de búsqueda:', {
+    query: query || 'ninguno',
+    category: categorySlug || 'ninguna',
+    page: currentPage
+  });
 
   // Petición para obtener categorías
   const { data: categories, error: categoriesError } = await supabase
@@ -80,7 +92,7 @@ export default async function Page({ searchParams }: HomePageProps) {
   // Petición para obtener los 5 posts con más vistas (tendencias)
   const { data: trendingPosts, error: trendingPostsError } = await supabase
     .from("generated_content")
-    .select("id, title, views")
+    .select("id, slug, title, views")
     .order("views", { ascending: false })
     .limit(5);
 
@@ -102,14 +114,12 @@ export default async function Page({ searchParams }: HomePageProps) {
     topic: post.title,
     count: `${post.views?.toLocaleString() || "0"} vistas`, // Using views as count
     trend: `+${Math.floor(Math.random() * 50) + 10}%`, // Random trend for now
-    slug: post.id, // Assuming id can be used as slug for trending posts
+    slug: post.slug,
   })) || [];
 
 
   return (
     <div className="min-h-screen bg-background">
-      <Header categories={categories} />
-
       <main className="max-w-7xl mx-auto px-4 py-8">
         {featuredPost && <HeroSection post={featuredPost} />}
 

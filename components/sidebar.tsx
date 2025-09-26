@@ -112,7 +112,7 @@ export function Sidebar({ categories, stats, trendingTopics }: SidebarProps) {
                   <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                     {item.topic}
                   </p>
-                  <p className="text-xs text-muted-foreground">{item.count}</p>
+                  <p className="text-xs text-muted-foreground/80">{item.count}</p>
                 </div>
               </div>
               <span className="text-xs text-green-400 font-medium">{item.trend}</span>
@@ -134,7 +134,7 @@ export function Sidebar({ categories, stats, trendingTopics }: SidebarProps) {
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
-              <span className="text-sm text-green-400 font-medium">{stat.change}</span>
+              <span className="text-sm text-green-500 font-medium">{stat.change}</span>
             </div>
           ))}
         </div>
@@ -181,9 +181,9 @@ export function Sidebar({ categories, stats, trendingTopics }: SidebarProps) {
             <button
               onClick={() => handleCategoryClick(category.slug)}
               key={category.id}
-              className={`flex items-center justify-between group cursor-pointer py-1 w-full text-left ${
-                currentCategory === category.slug ? 'text-primary font-bold' : 'text-foreground hover:text-primary'
-              } transition-colors`}
+              className={`flex items-center justify-between group cursor-pointer py-1 w-full text-left rounded-md px-2 -mx-2 ${
+                currentCategory === category.slug ? 'text-primary font-bold bg-primary/10' : 'text-foreground hover:text-primary hover:bg-muted'
+              } transition-all duration-200`}
             >
               <span className="text-sm font-medium">
                 {category.name}

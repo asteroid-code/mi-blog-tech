@@ -114,7 +114,7 @@ export async function createPost(post: Omit<Post, 'id' | 'created_at'>) {
 export async function getPostsByCategory(slug: string) {
   const { data, error } = await supabase
     .from('generated_content')
-    .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
+    .select('id, slug, created_at, title, summary, image_url, post_type, categories(name, slug)')
     .eq('categories.slug', slug)
     .order('created_at', { ascending: false });
 
@@ -134,7 +134,7 @@ export async function getPostsByCategory(slug: string) {
 export async function searchPosts(query: string) {
   const { data, error } = await supabase
     .from('generated_content')
-    .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
+    .select('id, slug, created_at, title, summary, image_url, post_type, categories(name, slug)')
     .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
     .order('created_at', { ascending: false });
 
@@ -153,7 +153,7 @@ export async function searchPosts(query: string) {
 export async function getFeaturedPosts() {
   const { data, error } = await supabase
     .from('generated_content')
-    .select('id, created_at, title, summary, image_url, post_type, categories(name, slug)')
+    .select('id, slug, created_at, title, summary, image_url, post_type, categories(name, slug)')
     .order('created_at', { ascending: false })
     .limit(6);
 

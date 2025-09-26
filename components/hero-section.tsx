@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { normalizeCategories } from "@/lib/utils/categories";
 import Link from "next/link"
 
 import { Post } from "@/lib/contentService"; // Ensure Post interface is correctly imported
@@ -27,7 +28,7 @@ export function HeroSection({ post }: HeroSectionProps) {
           priority
         />
         {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
 
         {/* Content */}
         <div className="relative z-10 p-6 max-w-3xl mx-auto">
@@ -40,25 +41,14 @@ export function HeroSection({ post }: HeroSectionProps) {
 
           {/* Category Pills */}
           <div className="flex flex-wrap justify-center gap-3">
-            {post.categories && (
-              Array.isArray(post.categories) ? (
-                post.categories.map((category) => (
-                  <span
-                    key={category.name}
-                    className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
-                  >
-                    {category.name}
-                  </span>
-                ))
-              ) : (
-                <span
-                  key={post.categories.name}
-                  className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
-                >
-                  {post.categories.name}
-                </span>
-              )
-            )}
+            {normalizeCategories(post.categories).map((category: { id: string, name: string, slug?: string }) => (
+              <span
+                key={category.name}
+                className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white border border-white/30 backdrop-blur-sm group-hover:bg-primary/80 group-hover:border-primary transition-all duration-300"
+              >
+                {category.name}
+              </span>
+            ))}
           </div>
         </div>
       </section>
