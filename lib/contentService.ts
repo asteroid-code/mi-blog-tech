@@ -164,3 +164,21 @@ export async function getFeaturedPosts() {
 
   return data;
 }
+
+/**
+ * Fetches all categories.
+ * @returns A promise that resolves to an array of category objects.
+ */
+export async function getCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id, name, slug')
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching categories:', error);
+    throw new Error('Could not fetch categories.');
+  }
+
+  return data || [];
+}

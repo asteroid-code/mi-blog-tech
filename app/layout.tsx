@@ -6,6 +6,9 @@ import { Suspense } from "react"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import SupabaseProvider from "./components/supabase-provider"
+import { Header } from "@/components/header" // Import the Header component
+import { ThemeProvider } from "@/components/theme-provider" // Import ThemeProvider
+import { getCategories } from "@/lib/contentService" // Import getCategories
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,19 +28,35 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  shrinkToFit: "no",
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const categories = await getCategories(); // Fetch categories
+
   return (
-    <html lang="es" className="dark">
+    <html lang="es" suppressHydrationWarning>
       <body className={`font-sans ${inter.variable} ${jetbrainsMono.variable} antialiased`}>
-        <SupabaseProvider>
-          <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
-        </SupabaseProvider>
-        <Toaster />
-        {/* <Analytics /> */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SupabaseProvider>
+            <Header categories={categories} /> {/* Pass categories to Header */}
+            <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
+          </SupabaseProvider>
+          <Toaster />
+          {/* <Analytics /> */}
+        </ThemeProvider>
       </body>
     </html>
   )

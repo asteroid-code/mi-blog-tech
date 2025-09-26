@@ -9,7 +9,14 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    // Enable image optimization by removing unoptimized: true
+    // For external images, you might need to add remotePatterns:
+    // remotePatterns: [
+    //   {
+    //     protocol: 'https',
+    //     hostname: 'example.com',
+    //   },
+    // ],
   },
 };
 
